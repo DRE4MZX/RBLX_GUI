@@ -30,7 +30,7 @@ function DMZ:CreateWindow(title)
     local Frame = create("Frame", {
         Parent = ScreenGui,
         Size = UDim2.new(0, 400, 0, 300),
-        Position = UDim2.new(0.5, -200, 0.5, -150),
+        Position = UDim2.new(0.3, -200, 0.5, -150),
         BackgroundColor3 = Color3.fromRGB(20, 20, 30),
         BorderSizePixel = 0,
     })
