@@ -49,14 +49,14 @@ function DMZ:CreateWindow(title)
         Parent = TitleBar,
         Size = UDim2.new(0, 25, 0, 25),
         Position = UDim2.new(1, -30, 0, 2),
-        Text = "✕",
+        Text = "X",
         Font = Enum.Font.GothamBold,
         TextColor3 = Color3.fromRGB(255, 100, 100),
         TextSize = 20,
         BackgroundColor3 = Color3.fromRGB(30,30,40),
         ZIndex = 5,
     })
-    
+
     create("UICorner", {Parent = CloseButton, CornerRadius = UDim.new(0,4)})
 
     -- Hover effect
