@@ -1,4 +1,4 @@
---// DMZ GUI Framework v2
+--// DMZ GUI Framework v3
 --// Author: Dreamz
 --// Style: RayHub/NFT Inspired
 --// Features: Drag, Resize, Toggle, Slider, Dropdown
@@ -71,6 +71,36 @@ function DMZ:CreateWindow(title)
         end
     end)
 
+    -- Resize
+    local ResizeHandle = create("Frame", {
+        Parent = Frame,
+        Size = UDim2.new(0, 20, 0, 20),
+        Position = UDim2.new(1, -20, 1, -20),
+        BackgroundTransparency = 1,
+        ZIndex = 2
+    })
+    ResizeHandle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local startSize = Frame.Size
+            local startPosMouse = input.Position
+            local conn
+            conn = UserInputService.InputChanged:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseMovement then
+                    local delta = i.Position - startPosMouse
+                    Frame.Size = UDim2.new(
+                        startSize.X.Scale, math.max(200, startSize.X.Offset + delta.X),
+                        startSize.Y.Scale, math.max(150, startSize.Y.Offset + delta.Y)
+                    )
+                end
+            end)
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    conn:Disconnect()
+                end
+            end)
+        end
+    end)
+
     -- Close
     CloseButton.MouseButton1Click:Connect(function()
         tween(Frame, {Size = UDim2.new(0,0,0,0), Position = UDim2.new(0.5,0,0.5,0)}, 0.3)
@@ -80,16 +110,14 @@ function DMZ:CreateWindow(title)
 
     local window = setmetatable({}, DMZ)
     window.Content = Content
-    window._yOffset = 0 -- untuk posisi item otomatis
+    window._yOffset = 0
     return window
 end
 
---// Toggle
+-- Toggle (sama seperti sebelumnya)
 function DMZ:CreateToggle(name, default, callback)
     local Toggle = create("TextButton", {
-        Parent = self.Content,
-        Size = UDim2.new(1,-20,0,40),
-        Position = UDim2.new(0,10,0,self._yOffset),
+        Parent = self.Content, Size = UDim2.new(1,-20,0,40), Position = UDim2.new(0,10,0,self._yOffset),
         BackgroundColor3 = Color3.fromRGB(35,35,50), Text = ""
     })
     create("UICorner", {Parent = Toggle, CornerRadius = UDim.new(0,8)})
@@ -115,12 +143,10 @@ function DMZ:CreateToggle(name, default, callback)
     self._yOffset = self._yOffset + 45
 end
 
---// Slider
+-- Slider (fix bug dengan AbsoluteSize update)
 function DMZ:CreateSlider(name, min, max, default, callback)
     local SliderFrame = create("Frame", {
-        Parent = self.Content,
-        Size = UDim2.new(1,-20,0,50),
-        Position = UDim2.new(0,10,0,self._yOffset),
+        Parent = self.Content, Size = UDim2.new(1,-20,0,50), Position = UDim2.new(0,10,0,self._yOffset),
         BackgroundColor3 = Color3.fromRGB(35,35,50)
     })
     create("UICorner", {Parent = SliderFrame, CornerRadius = UDim.new(0,8)})
@@ -132,7 +158,6 @@ function DMZ:CreateSlider(name, min, max, default, callback)
 
     local Bar = create("Frame", {Parent = SliderFrame, Size = UDim2.new(1,-20,0,8), Position = UDim2.new(0,10,0,30), BackgroundColor3 = Color3.fromRGB(70,70,90)})
     create("UICorner", {Parent = Bar, CornerRadius = UDim.new(0,4)})
-
     local Knob = create("Frame", {Parent = Bar, Size = UDim2.new((default-min)/(max-min),0,1,0), BackgroundColor3 = Color3.fromRGB(0,255,140)})
     create("UICorner", {Parent = Knob, CornerRadius = UDim.new(0,4)})
 
@@ -143,25 +168,30 @@ function DMZ:CreateSlider(name, min, max, default, callback)
     UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
     end)
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local mouseX = math.clamp(input.Position.X - Bar.AbsolutePosition.X, 0, Bar.AbsoluteSize.X)
+    local function updateSlider()
+        if Bar.AbsoluteSize.X > 0 then
+            local mouseX = math.clamp(UserInputService:GetMouseLocation().X - Bar.AbsolutePosition.X, 0, Bar.AbsoluteSize.X)
             local value = min + (mouseX / Bar.AbsoluteSize.X) * (max - min)
             Knob.Size = UDim2.new(mouseX/Bar.AbsoluteSize.X,0,1,0)
             Label.Text = name.." "..math.floor(value)
             if callback then callback(value) end
+        end
+    end
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            updateSlider()
         end
     end)
 
     self._yOffset = self._yOffset + 55
 end
 
---// Dropdown
+-- Dropdown (fix bug clipping & scroll)
 function DMZ:CreateDropdown(name, options, callback)
     local Dropped = false
-    local Dropdown = create("Frame", {
+    local Dropdown = create("TextButton", {
         Parent = self.Content, Size = UDim2.new(1,-20,0,40), Position = UDim2.new(0,10,0,self._yOffset),
-        BackgroundColor3 = Color3.fromRGB(35,35,50)
+        BackgroundColor3 = Color3.fromRGB(35,35,50), Text = ""
     })
     create("UICorner", {Parent = Dropdown, CornerRadius = UDim.new(0,8)})
 
@@ -173,12 +203,15 @@ function DMZ:CreateDropdown(name, options, callback)
         Font = Enum.Font.GothamBold, TextColor3 = Color3.fromRGB(255,255,255), TextSize = 14, BackgroundTransparency = 1
     })
 
-    local OptionsFrame = create("Frame", {Parent = Dropdown, Size = UDim2.new(1,0,0,#options*30), Position = UDim2.new(0,0,1,0), BackgroundColor3 = Color3.fromRGB(40,40,60), Visible = false})
+    local OptionsFrame = create("Frame", {Parent = self.Content, Size = UDim2.new(1,0,0,0), Position = UDim2.new(0,10,0, self._yOffset + 40),
+        BackgroundColor3 = Color3.fromRGB(40,40,60), Visible = false, ClipsDescendants = true
+    })
     create("UICorner", {Parent = OptionsFrame, CornerRadius = UDim.new(0,8)})
+    local UIListLayout = create("UIListLayout", {Parent = OptionsFrame, Padding = UDim.new(0,2), SortOrder = Enum.SortOrder.LayoutOrder})
 
-    for i,opt in pairs(options) do
+    for _,opt in pairs(options) do
         local Btn = create("TextButton", {
-            Parent = OptionsFrame, Text = opt, Size = UDim2.new(1,0,0,30), Position = UDim2.new(0,0,(i-1)*30,0),
+            Parent = OptionsFrame, Text = opt, Size = UDim2.new(1,0,0,30),
             BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(255,255,255), Font = Enum.Font.Gotham, TextSize = 14
         })
         Btn.MouseButton1Click:Connect(function()
@@ -192,11 +225,20 @@ function DMZ:CreateDropdown(name, options, callback)
 
     Dropdown.MouseButton1Click:Connect(function()
         Dropped = not Dropped
-        OptionsFrame.Visible = Dropped
-        Arrow.Text = Dropped and "▲" or "▼"
+        if Dropped then
+            OptionsFrame.Visible = true
+            local totalHeight = #OptionsFrame:GetChildren() * 32
+            tween(OptionsFrame, {Size = UDim2.new(1,0,0,totalHeight)}, 0.2)
+            Arrow.Text = "▲"
+        else
+            tween(OptionsFrame, {Size = UDim2.new(1,0,0,0)}, 0.2)
+            wait(0.2)
+            OptionsFrame.Visible = false
+            Arrow.Text = "▼"
+        end
     end)
 
-    self._yOffset = self._yOffset + 45 + (#options*30)
+    self._yOffset = self._yOffset + 45
 end
 
 return DMZ
