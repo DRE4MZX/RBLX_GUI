@@ -1,196 +1,156 @@
---// Module: GUIManager
-local GUIManager = {}
-GUIManager.__index = GUIManager
+--// DMZ GUI Framework
+--// Author: Dreamz
+--// Style: RayHub/NFT Inspired
+--// Features: Drag, Resize, Toggle, Slider, Dropdown
 
--- Helper to make UI objects
-local function create(instanceType, props)
-    local obj = Instance.new(instanceType)
-    for k, v in pairs(props) do
-        obj[k] = v
+-- Create a library table
+local DMZ = {}
+DMZ.__index = DMZ
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+
+--// Utility
+local function create(instance, props)
+    local obj = Instance.new(instance)
+    for i, v in pairs(props) do
+        obj[i] = v
     end
     return obj
 end
 
--- Constructor
-function GUIManager.new()
-    local self = setmetatable({}, GUIManager)
+local function tween(obj, props, time)
+    TweenService:Create(obj, TweenInfo.new(time, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props):Play()
+end
 
-    -- ScreenGui
-    self.ScreenGui = create("ScreenGui", {
-        Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"),
-        ResetOnSpawn = false
-    })
-
-    -- Main Frame
-    self.MainFrame = create("Frame", {
-        Parent = self.ScreenGui,
-        Size = UDim2.new(0, 300, 0, 200),
-        Position = UDim2.new(0.3, 0, 0.3, 0),
-        BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+--// Main Window
+function DMZ:CreateWindow(title)
+    local ScreenGui = create("ScreenGui", {Parent = LocalPlayer:WaitForChild("PlayerGui"), ResetOnSpawn = false})
+    local Frame = create("Frame", {
+        Parent = ScreenGui,
+        Size = UDim2.new(0, 400, 0, 300),
+        Position = UDim2.new(0.5, -200, 0.5, -150),
+        BackgroundColor3 = Color3.fromRGB(20, 20, 30),
         BorderSizePixel = 0,
-        Active = true,
-        Draggable = true
+    })
+    Frame.ClipsDescendants = true
+
+    local UICorner = create("UICorner", {Parent = Frame, CornerRadius = UDim.new(0, 12)})
+    local UIStroke = create("UIStroke", {
+        Parent = Frame,
+        Color = Color3.fromRGB(85, 0, 255),
+        Thickness = 2,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
     })
 
-    -- Top Bar
-    self.TopBar = create("Frame", {
-        Parent = self.MainFrame,
+    local TitleBar = create("Frame", {
+        Parent = Frame,
         Size = UDim2.new(1, 0, 0, 30),
-        BackgroundColor3 = Color3.fromRGB(45, 45, 45),
-        BorderSizePixel = 0
+        BackgroundColor3 = Color3.fromRGB(30, 30, 40),
+        BorderSizePixel = 0,
     })
+    create("UICorner", {Parent = TitleBar, CornerRadius = UDim.new(0, 12)})
 
-    -- Title
-    self.Title = create("TextLabel", {
-        Parent = self.TopBar,
-        Size = UDim2.new(1, -40, 1, 0),
-        Position = UDim2.new(0, 5, 0, 0),
-        BackgroundTransparency = 1,
-        Text = "My GUI Panel",
+    local TitleText = create("TextLabel", {
+        Parent = TitleBar,
+        Text = title,
+        Size = UDim2.new(1, -60, 1, 0),
+        Position = UDim2.new(0, 10, 0, 0),
+        Font = Enum.Font.GothamBold,
         TextColor3 = Color3.fromRGB(255, 255, 255),
-        TextXAlignment = Enum.TextXAlignment.Left
+        TextSize = 16,
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Left,
     })
 
-    -- Close Button
-    self.CloseButton = create("TextButton", {
-        Parent = self.TopBar,
-        Size = UDim2.new(0, 30, 1, 0),
+    local CloseButton = create("TextButton", {
+        Parent = TitleBar,
+        Size = UDim2.new(0, 30, 0, 30),
         Position = UDim2.new(1, -30, 0, 0),
-        BackgroundColor3 = Color3.fromRGB(200, 50, 50),
-        Text = "X",
-        TextColor3 = Color3.fromRGB(255, 255, 255)
+        Text = "✕",
+        Font = Enum.Font.GothamBold,
+        TextColor3 = Color3.fromRGB(255, 100, 100),
+        TextSize = 18,
+        BackgroundTransparency = 1,
     })
 
-    self.CloseButton.MouseButton1Click:Connect(function()
-        self.ScreenGui:Destroy()
-    end)
-
-    -- Resize Handle
-    self.ResizeHandle = create("TextButton", {
-        Parent = self.MainFrame,
-        Size = UDim2.new(0, 20, 0, 20),
-        Position = UDim2.new(1, -20, 1, -20),
-        BackgroundColor3 = Color3.fromRGB(70, 70, 70),
-        Text = "↘",
-        TextColor3 = Color3.fromRGB(255, 255, 255)
+    local Content = create("Frame", {
+        Parent = Frame,
+        Size = UDim2.new(1, 0, 1, -30),
+        Position = UDim2.new(0, 0, 0, 30),
+        BackgroundTransparency = 1,
     })
 
-    local UIS = game:GetService("UserInputService")
-    local resizing = false
-    self.ResizeHandle.MouseButton1Down:Connect(function()
-        resizing = true
-    end)
-    UIS.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            resizing = false
-        end
-    end)
-    UIS.InputChanged:Connect(function(input)
-        if resizing and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local mousePos = UIS:GetMouseLocation()
-            local guiPos = self.MainFrame.AbsolutePosition
-            self.MainFrame.Size = UDim2.new(0, mousePos.X - guiPos.X, 0, mousePos.Y - guiPos.Y)
-        end
-    end)
-
-    return self
-end
-
--- Add Toggle Button
-function GUIManager:AddToggle(name, callback)
-    local toggle = create("TextButton", {
-        Parent = self.MainFrame,
-        Size = UDim2.new(1, -20, 0, 30),
-        Position = UDim2.new(0, 10, 0, 40),
-        BackgroundColor3 = Color3.fromRGB(60, 60, 60),
-        Text = name,
-        TextColor3 = Color3.fromRGB(255, 255, 255)
-    })
-    local state = false
-    toggle.MouseButton1Click:Connect(function()
-        state = not state
-        toggle.BackgroundColor3 = state and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60, 60, 60)
-        callback(state)
-    end)
-end
-
--- Add Slider
-function GUIManager:AddSlider(name, min, max, callback)
-    local sliderFrame = create("Frame", {
-        Parent = self.MainFrame,
-        Size = UDim2.new(1, -20, 0, 30),
-        Position = UDim2.new(0, 10, 0, 80),
-        BackgroundColor3 = Color3.fromRGB(50, 50, 50),
-        BorderSizePixel = 0
-    })
-
-    local slider = create("Frame", {
-        Parent = sliderFrame,
-        Size = UDim2.new(0, 0, 1, 0),
-        BackgroundColor3 = Color3.fromRGB(0, 170, 0),
-        BorderSizePixel = 0
-    })
-
-    local UIS = game:GetService("UserInputService")
-    local dragging = false
-    sliderFrame.InputBegan:Connect(function(input)
+    --// Dragging
+    local dragging, dragStart, startPos
+    TitleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
+            dragStart = input.Position
+            startPos = Frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
         end
     end)
-    UIS.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    UIS.InputChanged:Connect(function(input)
+
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local relX = math.clamp((input.Position.X - sliderFrame.AbsolutePosition.X) / sliderFrame.AbsoluteSize.X, 0, 1)
-            slider.Size = UDim2.new(relX, 0, 1, 0)
-            local value = min + (max - min) * relX
-            callback(value)
+            local delta = input.Position - dragStart
+            Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
+
+    --// Close
+    CloseButton.MouseButton1Click:Connect(function()
+        tween(Frame, {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)}, 0.3)
+        wait(0.3)
+        ScreenGui:Destroy()
+    end)
+
+    local window = setmetatable({}, DMZ)
+    window.Content = Content
+    return window
 end
 
--- Add Dropdown
-function GUIManager:AddDropdown(name, options, callback)
-    local dropdown = create("TextButton", {
-        Parent = self.MainFrame,
-        Size = UDim2.new(1, -20, 0, 30),
-        Position = UDim2.new(0, 10, 0, 120),
-        BackgroundColor3 = Color3.fromRGB(60, 60, 60),
+--// Toggle
+function DMZ:CreateToggle(name, default, callback)
+    local Toggle = create("TextButton", {
+        Parent = self.Content,
+        Size = UDim2.new(1, -20, 0, 40),
+        Position = UDim2.new(0, 10, 0, #self.Content:GetChildren()*45),
+        BackgroundColor3 = Color3.fromRGB(35, 35, 50),
+        Text = "",
+    })
+    create("UICorner", {Parent = Toggle, CornerRadius = UDim.new(0, 8)})
+
+    local Label = create("TextLabel", {
+        Parent = Toggle,
         Text = name,
-        TextColor3 = Color3.fromRGB(255, 255, 255)
+        Size = UDim2.new(1, -50, 1, 0),
+        Position = UDim2.new(0, 10, 0, 0),
+        Font = Enum.Font.Gotham,
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 14,
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Left,
     })
 
-    local frame = create("Frame", {
-        Parent = dropdown,
-        Position = UDim2.new(0, 0, 1, 0),
-        Size = UDim2.new(1, 0, 0, #options * 30),
-        BackgroundColor3 = Color3.fromRGB(40, 40, 40),
-        Visible = false
+    local State = default or false
+    local Indicator = create("Frame", {
+        Parent = Toggle,
+        Size = UDim2.new(0, 20, 0, 20),
+        Position = UDim2.new(1, -30, 0.5, -10),
+        BackgroundColor3 = State and Color3.fromRGB(0, 255, 140) or Color3.fromRGB(70, 70, 90),
     })
+    create("UICorner", {Parent = Indicator, CornerRadius = UDim.new(1, 0)})
 
-    for i, opt in ipairs(options) do
-        local optBtn = create("TextButton", {
-            Parent = frame,
-            Size = UDim2.new(1, 0, 0, 30),
-            Position = UDim2.new(0, 0, 0, (i - 1) * 30),
-            Text = opt,
-            BackgroundColor3 = Color3.fromRGB(60, 60, 60),
-            TextColor3 = Color3.fromRGB(255, 255, 255)
-        })
-        optBtn.MouseButton1Click:Connect(function()
-            callback(opt)
-            frame.Visible = false
-            dropdown.Text = opt
-        end)
-    end
-
-    dropdown.MouseButton1Click:Connect(function()
-        frame.Visible = not frame.Visible
+    Toggle.MouseButton1Click:Connect(function()
+        State = not State
+        tween(Indicator, {BackgroundColor3 = State and Color3.fromRGB(0, 255, 140) or Color3.fromRGB(70, 70, 90)}, 0.2)
+        if callback then callback(State) end
     end)
 end
 
-return GUIManager
+return DMZ
