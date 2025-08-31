@@ -46,9 +46,33 @@ function DMZ:CreateWindow(title)
         Font = Enum.Font.GothamBold, TextColor3 = Color3.fromRGB(255,255,255), TextSize = 16, BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left
     })
     local CloseButton = create("TextButton", {
-        Parent = TitleBar, Size = UDim2.new(0,30,0,30), Position = UDim2.new(1,-30,0,0),
-        Text = "✕", Font = Enum.Font.GothamBold, TextColor3 = Color3.fromRGB(255,100,100), TextSize = 18, BackgroundTransparency = 1
+        Parent = TitleBar,
+        Size = UDim2.new(0, 25, 0, 25),
+        Position = UDim2.new(1, -30, 0, 2),
+        Text = "✕",
+        Font = Enum.Font.GothamBold,
+        TextColor3 = Color3.fromRGB(255, 100, 100),
+        TextSize = 20,
+        BackgroundColor3 = Color3.fromRGB(30,30,40),
+        ZIndex = 5,
     })
+    
+    create("UICorner", {Parent = CloseButton, CornerRadius = UDim.new(0,4)})
+
+    -- Hover effect
+    CloseButton.MouseEnter:Connect(function()
+        tween(CloseButton, {BackgroundColor3 = Color3.fromRGB(255,50,50)}, 0.15)
+    end)
+    CloseButton.MouseLeave:Connect(function()
+        tween(CloseButton, {BackgroundColor3 = Color3.fromRGB(30,30,40)}, 0.15)
+    end)
+
+    -- Close logic
+    CloseButton.MouseButton1Click:Connect(function()
+        tween(Frame, {Size = UDim2.new(0,0,0,0), Position = UDim2.new(0.4,0,0.5,0)}, 0.3)
+        wait(0.3)
+        ScreenGui:Destroy()
+    end)
 
     local Content = create("Frame", {Parent = Frame, Size = UDim2.new(1,0,1,-30), Position = UDim2.new(0,0,0,30), BackgroundTransparency = 1})
 
