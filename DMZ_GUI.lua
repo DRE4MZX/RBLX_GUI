@@ -646,13 +646,14 @@ function DMZ:CreateWindow(title)
 					else
 						selectedItems = { selections }
 					end
-					callback(selectedItems, true) -- true = toggle ON
+					callback(selectedItems, true) -- toggleState = true
 				else
 					submitBtn.Text = "OFF"
 					submitBtn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
-					callback({}, false) -- false = toggle OFF, kosongkan list
+					callback({}, false) -- toggleState = false, kosongkan list
 				end
 			end)
+
 
 			tabScroll.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 120)
 		end
