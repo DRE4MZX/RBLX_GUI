@@ -89,20 +89,18 @@ function DMZ:CreateWindow(title)
 	end)
 
 	-- Minimize Button
-	local MinimizeButton = create(
-		"TextButton",
-		{
-			Parent = TitleBar,
-			Size = UDim2.new(0, 25, 0, 25),
-			Position = UDim2.new(1, -60, 0, 2),
-			Text = "_",
-			Font = Enum.Font.GothamBold,
-			TextColor3 = Color3.fromRGB(255, 255, 255),
-			TextSize = 20,
-			BackgroundColor3 = Color3.fromRGB(30, 30, 40),
-		}
-	)
+	local MinimizeButton = create("TextButton", {
+		Parent = TitleBar,
+		Size = UDim2.new(0, 25, 0, 25),
+		Position = UDim2.new(1, -60, 0, 2),
+		Text = "_",
+		Font = Enum.Font.GothamBold,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextSize = 20,
+		BackgroundColor3 = Color3.fromRGB(30, 30, 40),
+	})
 	create("UICorner", { Parent = MinimizeButton, CornerRadius = UDim.new(0, 4) })
+
 	MinimizeButton.MouseEnter:Connect(function()
 		tween(MinimizeButton, { BackgroundColor3 = Color3.fromRGB(100, 100, 100) }, 0.15)
 	end)
@@ -111,12 +109,20 @@ function DMZ:CreateWindow(title)
 	end)
 
 	local minimized = false
+	local lastSize = Frame.Size -- simpan ukuran terakhir
+	local lastPos = Frame.Position -- simpan posisi terakhir
+
 	MinimizeButton.MouseButton1Click:Connect(function()
 		if not minimized then
+			-- Simpan ukuran & posisi terakhir sebelum minimize
+			lastSize = Frame.Size
+			lastPos = Frame.Position
 			Frame.Size = UDim2.new(Frame.Size.X.Scale, Frame.Size.X.Offset, 0, 30) -- hanya title bar
 			minimized = true
 		else
-			Frame.Size = UDim2.new(0, 500, 0, 350) -- kembalikan ke ukuran normal
+			-- Restore ukuran & posisi terakhir
+			Frame.Size = lastSize
+			Frame.Position = lastPos
 			minimized = false
 		end
 	end)
