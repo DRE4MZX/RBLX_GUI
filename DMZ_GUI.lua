@@ -618,7 +618,7 @@ function DMZ:CreateWindow(title)
 							table.insert(selections, opt)
 							btn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 						end
-						dropdown.Text = (#selections > 0) and table.concat(selections, ", ") or "Select..."
+						dropdown.Text = (#selections > 0) and (table.concat(selections, ", ")) or "Select..."
 					else
 						selections = opt
 						dropdown.Text = opt
@@ -633,6 +633,7 @@ function DMZ:CreateWindow(title)
 				optionsFrame.Visible = listOpen
 			end)
 
+			-- Submit button: baru panggil callback
 			submitBtn.MouseButton1Click:Connect(function()
 				if selections then
 					callback(selections)
@@ -643,6 +644,7 @@ function DMZ:CreateWindow(title)
 
 			tabScroll.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 120)
 		end
+
 
 
 		return tabObj
