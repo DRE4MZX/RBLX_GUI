@@ -562,8 +562,8 @@ function DMZ:CreateWindow(title)
 				Parent = container,
 				Size = UDim2.new(1, -10, 0, 25),
 				Position = UDim2.new(0, 5, 0, 65),
-				Text = "Submit",
-				BackgroundColor3 = Color3.fromRGB(0, 170, 255),
+				Text = "OFF",
+				BackgroundColor3 = Color3.fromRGB(120, 120, 120),
 				TextColor3 = Color3.fromRGB(255, 255, 255),
 				Font = Enum.Font.Gotham,
 				TextSize = 14,
@@ -572,6 +572,7 @@ function DMZ:CreateWindow(title)
 
 			local listOpen = false
 			local selections = choosemultiple and {} or nil
+			local isActive = false -- toggle state
 
 			-- Options Frame (scrollable)
 			local optionsFrame = create("ScrollingFrame", {
@@ -606,7 +607,6 @@ function DMZ:CreateWindow(title)
 				btn.MouseButton1Click:Connect(function()
 					if choosemultiple then
 						if table.find(selections, opt) then
-							-- kalau sudah dipilih, hapus
 							for i, v in ipairs(selections) do
 								if v == opt then
 									table.remove(selections, i)
@@ -618,7 +618,7 @@ function DMZ:CreateWindow(title)
 							table.insert(selections, opt)
 							btn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 						end
-						dropdown.Text = (#selections > 0) and (table.concat(selections, ", ")) or "Select..."
+						dropdown.Text = (#selections > 0) and table.concat(selections, ", ") or "Select..."
 					else
 						selections = opt
 						dropdown.Text = opt
@@ -633,12 +633,17 @@ function DMZ:CreateWindow(title)
 				optionsFrame.Visible = listOpen
 			end)
 
-			-- Submit button: baru panggil callback
+			-- Submit as toggle
 			submitBtn.MouseButton1Click:Connect(function()
-				if selections then
+				isActive = not isActive
+				if isActive then
+					submitBtn.Text = "ON"
+					submitBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 80)
 					callback(selections)
 				else
-					callback(nil)
+					submitBtn.Text = "OFF"
+					submitBtn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
+					callback(false)
 				end
 			end)
 
