@@ -639,11 +639,18 @@ function DMZ:CreateWindow(title)
 				if isActive then
 					submitBtn.Text = "ON"
 					submitBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 80)
-					callback(selections)
+					-- pastikan selections selalu table
+					local selectedItems
+					if choosemultiple then
+						selectedItems = selections
+					else
+						selectedItems = { selections }
+					end
+					callback(selectedItems, true) -- true = toggle ON
 				else
 					submitBtn.Text = "OFF"
 					submitBtn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
-					callback(false)
+					callback({}, false) -- false = toggle OFF, kosongkan list
 				end
 			end)
 
