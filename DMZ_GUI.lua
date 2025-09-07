@@ -520,10 +520,10 @@ function DMZ:CreateWindow(title)
 		end
 
 		-- DropDown
-		function tabObj:AddDropdown(name, options)
+		function tabObj:AddDropdown(name, options, callback, choosemultiple)
 			local container = create("Frame", {
 				Parent = tabScroll,
-				Size = UDim2.new(1, -10, 0, 80),
+				Size = UDim2.new(1, -10, 0, 100),
 				BackgroundColor3 = Color3.fromRGB(35, 35, 50),
 			})
 			create("UICorner", { Parent = container, CornerRadius = UDim.new(0, 6) })
@@ -555,7 +555,7 @@ function DMZ:CreateWindow(title)
 			local submitBtn = create("TextButton", {
 				Parent = container,
 				Size = UDim2.new(1, -10, 0, 25),
-				Position = UDim2.new(0, 5, 0, 55),
+				Position = UDim2.new(0, 5, 0, 65),
 				Text = "Submit",
 				BackgroundColor3 = Color3.fromRGB(0, 170, 255),
 				TextColor3 = Color3.fromRGB(255, 255, 255),
@@ -565,24 +565,30 @@ function DMZ:CreateWindow(title)
 			create("UICorner", { Parent = submitBtn, CornerRadius = UDim.new(0, 6) })
 
 			local listOpen = false
-			local selection = nil
+			local selections = choosemultiple and {} or nil
 
-			-- Options Frame (hanya muncul ketika dropdown dibuka)
-			local optionsFrame = create("Frame", {
+			-- Options Frame (scrollable)
+			local optionsFrame = create("ScrollingFrame", {
 				Parent = container,
-				Size = UDim2.new(1, 0, 0, #options * 25),
+				Size = UDim2.new(1, 0, 0, 100),
 				Position = UDim2.new(0, 0, 0, 50),
 				BackgroundColor3 = Color3.fromRGB(40, 40, 60),
 				Visible = false,
 				ZIndex = 10,
+				CanvasSize = UDim2.new(0, 0, 0, #options * 25),
+				ScrollBarThickness = 6,
 			})
 			create("UICorner", { Parent = optionsFrame, CornerRadius = UDim.new(0, 6) })
 
-			for i, opt in ipairs(options) do
+			local listLayout = create("UIListLayout", {
+				Parent = optionsFrame,
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			})
+
+			for _, opt in ipairs(options) do
 				local btn = create("TextButton", {
 					Parent = optionsFrame,
-					Size = UDim2.new(1, 0, 0, 25),
-					Position = UDim2.new(0, 0, 0, (i - 1) * 25),
+					Size = UDim2.new(1, -4, 0, 25),
 					Text = opt,
 					BackgroundColor3 = Color3.fromRGB(50, 50, 70),
 					TextColor3 = Color3.fromRGB(255, 255, 255),
@@ -590,11 +596,29 @@ function DMZ:CreateWindow(title)
 					TextSize = 14,
 					ZIndex = 10,
 				})
+
 				btn.MouseButton1Click:Connect(function()
-					selection = opt
-					dropdown.Text = opt
-					optionsFrame.Visible = false
-					listOpen = false
+					if choosemultiple then
+						if table.find(selections, opt) then
+							-- kalau sudah dipilih, hapus
+							for i, v in ipairs(selections) do
+								if v == opt then
+									table.remove(selections, i)
+									break
+								end
+							end
+							btn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+						else
+							table.insert(selections, opt)
+							btn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+						end
+						dropdown.Text = (#selections > 0) and table.concat(selections, ", ") or "Select..."
+					else
+						selections = opt
+						dropdown.Text = opt
+						optionsFrame.Visible = false
+						listOpen = false
+					end
 				end)
 			end
 
@@ -604,15 +628,16 @@ function DMZ:CreateWindow(title)
 			end)
 
 			submitBtn.MouseButton1Click:Connect(function()
-				if selection then
-					print("Selected option:", selection)
+				if selections then
+					callback(selections)
 				else
-					print("No option selected")
+					callback(nil)
 				end
 			end)
 
-			tabScroll.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
+			tabScroll.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 120)
 		end
+
 
 		return tabObj
 	end
