@@ -41,48 +41,25 @@ local function stopAutoVote()
 end
 
 -- ============================
--- Functions: Auto Self Revive
+-- Functions: Auto Self Revive (Loop every 3s)
 -- ============================
-local function setupAutoSelfReviveForCharacter(char)
-    if AutoSelfReviveConnection then
-        AutoSelfReviveConnection:Disconnect()
-    end
-
-    AutoSelfReviveConnection = char:GetAttributeChangedSignal("Downed"):Connect(function()
-        local isDowned = char:GetAttribute("Downed")
-        if isDowned and not hasRevived then
-            hasRevived = true
-            task.wait(3)
-            ReplicatedStorage.Events.Player.ChangePlayerMode:FireServer(true)
-            task.delay(10, function()
-                hasRevived = false
-            end)
+local function startAutoSelfReviveLoop()
+    task.spawn(function()
+        while autoReviveEnabled do
+            local char = player.Character
+            if char then
+                local isDowned = char:GetAttribute("Downed")
+                if isDowned and not hasRevived then
+                    hasRevived = true
+                    ReplicatedStorage.Events.Player.ChangePlayerMode:FireServer(true)
+                    task.delay(10, function()
+                        hasRevived = false
+                    end)
+                end
+            end
+            task.wait(1) -- cek setiap 3 detik
         end
     end)
-end
-
-local function startAutoSelfRevive()
-    if not autoReviveEnabled then return end
-
-    -- Attach ke karakter yang sudah ada
-    local char = player.Character
-    if char then
-        setupAutoSelfReviveForCharacter(char)
-    end
-
-    -- Attach ke karakter baru ketika respawn
-    player.CharacterAdded:Connect(function(newChar)
-        task.wait(1) -- tunggu atribut siap
-        setupAutoSelfReviveForCharacter(newChar)
-    end)
-end
-
-local function stopAutoSelfRevive()
-    if AutoSelfReviveConnection then
-        AutoSelfReviveConnection:Disconnect()
-        AutoSelfReviveConnection = nil
-    end
-    hasRevived = false
 end
 
 -- ============================
@@ -183,10 +160,11 @@ reviveToggleBtn.MouseButton1Click:Connect(function()
     if autoReviveEnabled then
         reviveToggleBtn.Text = "Disable Auto Revive"
         reviveToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
-        startAutoSelfRevive()
+        startAutoSelfReviveLoop()
     else
         reviveToggleBtn.Text = "Enable Auto Revive"
         reviveToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
-        stopAutoSelfRevive()
+        hasRevived = false
     end
 end)
+
