@@ -1,0 +1,174 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+-- Variables
+local AutoVoteConnection = nil
+local AutoSelfReviveConnection = nil
+local hasRevived = false
+local autoReviveEnabled = false
+local featureStates = {SelectedMap = 1} -- default map
+
+-- Functions
+local function fireVoteServer(mapNumber)
+    local eventsFolder = ReplicatedStorage:WaitForChild("Events", 10)
+    if eventsFolder then
+        local playerFolder = eventsFolder:WaitForChild("Player", 10)
+        if playerFolder then
+            local voteEvent = playerFolder:WaitForChild("Vote", 10)
+            if voteEvent and typeof(voteEvent) == "Instance" and voteEvent:IsA("RemoteEvent") then
+                voteEvent:FireServer(mapNumber)
+            end
+        end
+    end
+end
+
+local function startAutoVote()
+    if AutoVoteConnection then return end
+    AutoVoteConnection = RunService.Heartbeat:Connect(function()
+        fireVoteServer(featureStates.SelectedMap)
+    end)
+end
+
+local function stopAutoVote()
+    if AutoVoteConnection then
+        AutoVoteConnection:Disconnect()
+        AutoVoteConnection = nil
+    end
+end
+
+local function startAutoSelfRevive()
+    if AutoSelfReviveConnection then
+        AutoSelfReviveConnection:Disconnect()
+    end
+    
+    local character = player.Character
+    if not character then return end
+    
+    AutoSelfReviveConnection = character:GetAttributeChangedSignal("Downed"):Connect(function()
+        local isDowned = character:GetAttribute("Downed")
+        if isDowned and not hasRevived then
+            hasRevived = true
+            task.wait(3)
+            
+            ReplicatedStorage.Events.Player.ChangePlayerMode:FireServer(true)
+            
+            task.delay(10, function()
+                hasRevived = false
+            end)
+        end
+    end)
+end
+
+local function stopAutoSelfRevive()
+    if AutoSelfReviveConnection then
+        AutoSelfReviveConnection:Disconnect()
+        AutoSelfReviveConnection = nil
+    end
+    hasRevived = false
+end
+
+-- UI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AutoVoteAndReviveUI"
+screenGui.Parent = game:GetService("CoreGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 220, 0, 200)
+frame.Position = UDim2.new(0.5, -110, 0.5, -100)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+
+local uicorner = Instance.new("UICorner")
+uicorner.CornerRadius = UDim.new(0, 10)
+uicorner.Parent = frame
+
+-- Close Button
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 25, 0, 25)
+closeButton.Position = UDim2.new(1, -30, 0, 5)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeButton.Parent = frame
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+    stopAutoVote()
+    stopAutoSelfRevive()
+end)
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -40, 0, 30)
+title.Position = UDim2.new(0,10,0,10)
+title.BackgroundTransparency = 1
+title.Text = "Auto Vote & Revive"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 18
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = frame
+
+-- Map Dropdown
+local mapDropdown = Instance.new("TextButton")
+mapDropdown.Size = UDim2.new(0, 200, 0, 30)
+mapDropdown.Position = UDim2.new(0, 10, 0, 50)
+mapDropdown.Text = "Select Map: 1"
+mapDropdown.Parent = frame
+
+local mapOptions = {1, 2, 3} -- ganti sesuai map yang ada
+local currentMapIndex = 1
+
+mapDropdown.MouseButton1Click:Connect(function()
+    currentMapIndex = currentMapIndex + 1
+    if currentMapIndex > #mapOptions then
+        currentMapIndex = 1
+    end
+    featureStates.SelectedMap = mapOptions[currentMapIndex]
+    mapDropdown.Text = "Select Map: "..featureStates.SelectedMap
+end)
+
+-- Start/Stop Auto Vote Buttons
+local startButton = Instance.new("TextButton")
+startButton.Size = UDim2.new(0, 90, 0, 30)
+startButton.Position = UDim2.new(0, 10, 0, 90)
+startButton.Text = "Start Vote"
+startButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+startButton.Parent = frame
+startButton.MouseButton1Click:Connect(startAutoVote)
+
+local stopButton = Instance.new("TextButton")
+stopButton.Size = UDim2.new(0, 90, 0, 30)
+stopButton.Position = UDim2.new(0, 120, 0, 90)
+stopButton.Text = "Stop Vote"
+stopButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+stopButton.Parent = frame
+stopButton.MouseButton1Click:Connect(stopAutoVote)
+
+-- Auto Self Revive Toggle
+local reviveToggleBtn = Instance.new("TextButton")
+reviveToggleBtn.Size = UDim2.new(0, 200, 0, 30)
+reviveToggleBtn.Position = UDim2.new(0, 10, 0, 140)
+reviveToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+reviveToggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+reviveToggleBtn.Font = Enum.Font.SourceSansBold
+reviveToggleBtn.TextSize = 18
+reviveToggleBtn.Text = "Enable Auto Revive"
+reviveToggleBtn.Parent = frame
+
+reviveToggleBtn.MouseButton1Click:Connect(function()
+    autoReviveEnabled = not autoReviveEnabled
+    if autoReviveEnabled then
+        reviveToggleBtn.Text = "Disable Auto Revive"
+        reviveToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+        startAutoSelfRevive()
+    else
+        reviveToggleBtn.Text = "Enable Auto Revive"
+        reviveToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+        stopAutoSelfRevive()
+    end
+end)
