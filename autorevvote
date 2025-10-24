@@ -10,7 +10,9 @@ local hasRevived = false
 local autoReviveEnabled = false
 local featureStates = {SelectedMap = 1} -- default map
 
--- Functions
+-- ============================
+-- Functions: Auto Vote
+-- ============================
 local function fireVoteServer(mapNumber)
     local eventsFolder = ReplicatedStorage:WaitForChild("Events", 10)
     if eventsFolder then
@@ -38,26 +40,40 @@ local function stopAutoVote()
     end
 end
 
-local function startAutoSelfRevive()
+-- ============================
+-- Functions: Auto Self Revive
+-- ============================
+local function setupAutoSelfReviveForCharacter(char)
     if AutoSelfReviveConnection then
         AutoSelfReviveConnection:Disconnect()
     end
-    
-    local character = player.Character
-    if not character then return end
-    
-    AutoSelfReviveConnection = character:GetAttributeChangedSignal("Downed"):Connect(function()
-        local isDowned = character:GetAttribute("Downed")
+
+    AutoSelfReviveConnection = char:GetAttributeChangedSignal("Downed"):Connect(function()
+        local isDowned = char:GetAttribute("Downed")
         if isDowned and not hasRevived then
             hasRevived = true
             task.wait(3)
-            
             ReplicatedStorage.Events.Player.ChangePlayerMode:FireServer(true)
-            
             task.delay(10, function()
                 hasRevived = false
             end)
         end
+    end)
+end
+
+local function startAutoSelfRevive()
+    if not autoReviveEnabled then return end
+
+    -- Attach ke karakter yang sudah ada
+    local char = player.Character
+    if char then
+        setupAutoSelfReviveForCharacter(char)
+    end
+
+    -- Attach ke karakter baru ketika respawn
+    player.CharacterAdded:Connect(function(newChar)
+        task.wait(1) -- tunggu atribut siap
+        setupAutoSelfReviveForCharacter(newChar)
     end)
 end
 
@@ -69,7 +85,9 @@ local function stopAutoSelfRevive()
     hasRevived = false
 end
 
+-- ============================
 -- UI
+-- ============================
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "AutoVoteAndReviveUI"
 screenGui.Parent = game:GetService("CoreGui")
