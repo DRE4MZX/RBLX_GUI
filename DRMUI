@@ -902,7 +902,7 @@ function DRMUIv2.new(Name, Header, Icon)
                         BackgroundTransparency = 1,
                         Position = UDim2.new(0, 35, 0, 15),
                         Size = UDim2.new(1, -35, 0, 25),
-                        Font = Enum.Font.fredokaOne,
+                        Font = Enum.Font.FredokaOne,
                         Text = Name and tostring(Name) or "DRMUIv2",
                         TextColor3 = Color3.fromRGB(255, 255, 255),
                         TextScaled = true,
@@ -1006,7 +1006,7 @@ function DRMUIv2.new(Name, Header, Icon)
         Size = UDim2.new(0, 30, 0, 30),
         BackgroundColor3 = Color3.fromRGB(255, 65, 65),
         Text = "X",
-        Font = Enum.Font.fredokaOne,
+        Font = Enum.Font.FredokaOne,
         TextSize = 20,
         TextColor3 = Color3.fromRGB(255, 255, 255),
         AutoButtonColor = false
