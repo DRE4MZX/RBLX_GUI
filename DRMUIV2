@@ -902,7 +902,7 @@ function DRMUIv2.new(Name, Header, Icon)
                         BackgroundTransparency = 1,
                         Position = UDim2.new(0, 35, 0, 15),
                         Size = UDim2.new(1, -35, 0, 25),
-                        Font = Enum.Font.GothamBold,
+                        Font = Enum.Font.fredokaOne,
                         Text = Name and tostring(Name) or "DRMUIv2",
                         TextColor3 = Color3.fromRGB(255, 255, 255),
                         TextScaled = true,
@@ -997,6 +997,38 @@ function DRMUIv2.new(Name, Header, Icon)
     )
     local DragPro = Utility.CreateDrag(Main, Main, {TweenDuration = 0.15, TweenStyle = Enum.EasingStyle.Quad})
     local UIPageLayout = Main.Contents.UIPageLayout
+
+    local CloseButton = Utility.new("TextButton", {
+        Name = "CloseButton",
+        Parent = Main,
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, -10, 0, 10),
+        Size = UDim2.new(0, 30, 0, 30),
+        BackgroundColor3 = Color3.fromRGB(255, 65, 65),
+        Text = "X",
+        Font = Enum.Font.fredokaOne,
+        TextSize = 20,
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        AutoButtonColor = false
+    }, {
+        Utility.new("UICorner", {CornerRadius = UDim.new(1, 0)}),
+        Utility.new("UIStroke", {Color = Color3.fromRGB(255, 255, 255), Thickness = 1})
+    })
+
+    CloseButton.MouseEnter:Connect(function()
+        Utility.Tween(CloseButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 85, 85)}):Play()
+    end)
+
+    CloseButton.MouseLeave:Connect(function()
+        Utility.Tween(CloseButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 65, 65)}):Play()
+    end)
+
+    CloseButton.MouseButton1Down:Connect(function()
+        Utility.Tween(Main, TweenInfo.new(0.3), {BackgroundTransparency = 1, Size = UDim2.new(0, 0, 0, 0)}):Play()
+        task.wait(0.3)
+        DRMUIv2.ScreenGui:Destroy()
+    end)
+
 
     -- Scripts --
     Main.SideBar.MouseWheelBackward:Connect(function()
