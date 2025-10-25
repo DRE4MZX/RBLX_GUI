@@ -22,7 +22,9 @@ end
 function DMZ:CreateWindow(title)
 	local selfObj = setmetatable({}, DMZ)
 
-	local ScreenGui = create("ScreenGui", { Parent = LocalPlayer:WaitForChild("PlayerGui"), ResetOnSpawn = false })
+	local CoreGui = game:GetService("CoreGui")
+	local ScreenGui = create("ScreenGui", { Parent = CoreGui, ResetOnSpawn = false })
+	
 	local Frame = create(
 		"Frame",
 		{
