@@ -21,6 +21,9 @@ local flyKeyDown, flyKeyUp
 local Clip = false
 local Noclipping
 
+local highlightEnabled = false
+local itemsFolder = workspace:WaitForChild("Items")
+
 ------------------------------------------------------------
 -- HELPER FUNCTIONS
 ------------------------------------------------------------
@@ -49,7 +52,7 @@ local function notify(title, msg)
 	titleLabel.TextColor3 = Color3.new(1, 1, 1)
 	titleLabel.Font = Enum.Font.GothamBold
 	titleLabel.BackgroundTransparency = 1
-	titleLabel.TextScaled = true
+	titleLabel.TextSize = 20
 
 	local msgLabel = Instance.new("TextLabel", frame)
 	msgLabel.Size = UDim2.new(1, 0, 0.5, 0)
@@ -58,12 +61,75 @@ local function notify(title, msg)
 	msgLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 	msgLabel.Font = Enum.Font.Gotham
 	msgLabel.BackgroundTransparency = 1
-	msgLabel.TextScaled = true
+	msgLabel.TextSize = 20
 
 	task.spawn(function()
 		task.wait(2)
 		frame:Destroy()
 	end)
+end
+
+------------------------------------------------------------
+-- HIGHLIGHT SYSTEM
+------------------------------------------------------------
+local function createHighlight(item)
+	if not item:IsA("Tool") then return end
+	local adornee = item:FindFirstChildWhichIsA("BasePart")
+	if not adornee then return end
+
+	if not item:FindFirstChild("Highlight") then
+		local highlight = Instance.new("Highlight")
+		highlight.Name = "Highlight"
+		highlight.FillColor = Color3.fromRGB(255, 255, 0)
+		highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+		highlight.FillTransparency = 0.5
+		highlight.Adornee = item
+		highlight.Parent = item
+	end
+
+	if not item:FindFirstChild("NameBillboard") then
+		local billboard = Instance.new("BillboardGui")
+		billboard.Name = "NameBillboard"
+		billboard.Adornee = adornee
+		billboard.Size = UDim2.new(0, 100, 0, 30)
+		billboard.StudsOffset = Vector3.new(0, 3, 0)
+		billboard.AlwaysOnTop = true
+		billboard.Parent = item
+
+		local textLabel = Instance.new("TextLabel")
+		textLabel.BackgroundTransparency = 1
+		textLabel.Size = UDim2.new(1, 0, 1, 0)
+		textLabel.Text = item.Name
+		textLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+		textLabel.TextStrokeTransparency = 0.2
+		textLabel.TextSize = 20
+		textLabel.Font = Enum.Font.GothamBold
+		textLabel.Parent = billboard
+	end
+end
+
+local function enableHighlight()
+	highlightEnabled = true
+	for _, item in pairs(itemsFolder:GetChildren()) do
+		createHighlight(item)
+	end
+
+	itemsFolder.ChildAdded:Connect(function(child)
+		if highlightEnabled then
+			task.wait(0.1)
+			createHighlight(child)
+		end
+	end)
+	notify("Highlight", "Highlight Enabled")
+end
+
+local function disableHighlight()
+	highlightEnabled = false
+	for _, item in pairs(itemsFolder:GetChildren()) do
+		if item:FindFirstChild("Highlight") then item.Highlight:Destroy() end
+		if item:FindFirstChild("NameBillboard") then item.NameBillboard:Destroy() end
+	end
+	notify("Highlight", "Highlight Disabled")
 end
 
 ------------------------------------------------------------
@@ -191,7 +257,7 @@ gui.IgnoreGuiInset = true
 gui.Parent = playerGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 200, 0, 140)
+frame.Size = UDim2.new(0, 200, 0, 190)
 frame.Position = UDim2.new(0.35, 0, 0.1, 0)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.Active = true
@@ -203,31 +269,41 @@ Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1, -30, 0, 30)
 title.Position = UDim2.new(0, 10, 0, 5)
-title.Text = "Fly / Noclip Menu"
+title.Text = "DMZHUB"
 title.TextColor3 = Color3.new(1,1,1)
 title.BackgroundTransparency = 1
 title.Font = Enum.Font.GothamBold
-title.TextScaled = true
+title.TextSize = 20
 
 local flyBtn = Instance.new("TextButton", frame)
 flyBtn.Size = UDim2.new(0.8, 0, 0, 35)
-flyBtn.Position = UDim2.new(0.1, 0, 0.35, 0)
+flyBtn.Position = UDim2.new(0.1, 0, 0.25, 0)
 flyBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 flyBtn.Text = "Fly: OFF"
 flyBtn.TextColor3 = Color3.new(1,1,1)
 flyBtn.Font = Enum.Font.GothamBold
-flyBtn.TextScaled = true
+flyBtn.TextSize = 20
 Instance.new("UICorner", flyBtn).CornerRadius = UDim.new(0, 8)
 
 local noclipBtn = Instance.new("TextButton", frame)
 noclipBtn.Size = UDim2.new(0.8, 0, 0, 35)
-noclipBtn.Position = UDim2.new(0.1, 0, 0.65, 0)
+noclipBtn.Position = UDim2.new(0.1, 0, 0.5, 0)
 noclipBtn.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
 noclipBtn.Text = "Noclip: OFF"
 noclipBtn.TextColor3 = Color3.new(1,1,1)
 noclipBtn.Font = Enum.Font.GothamBold
-noclipBtn.TextScaled = true
+noclipBtn.TextSize = 20
 Instance.new("UICorner", noclipBtn).CornerRadius = UDim.new(0, 8)
+
+local highlightBtn = Instance.new("TextButton", frame)
+highlightBtn.Size = UDim2.new(0.8, 0, 0, 35)
+highlightBtn.Position = UDim2.new(0.1, 0, 0.75, 0)
+highlightBtn.BackgroundColor3 = Color3.fromRGB(200, 200, 0)
+highlightBtn.Text = "Highlight: OFF"
+highlightBtn.TextColor3 = Color3.new(1,1,1)
+highlightBtn.Font = Enum.Font.GothamBold
+highlightBtn.TextSize = 20
+Instance.new("UICorner", highlightBtn).CornerRadius = UDim.new(0, 8)
 
 local closeBtn = Instance.new("TextButton", frame)
 closeBtn.Size = UDim2.new(0, 25, 0, 25)
@@ -236,7 +312,7 @@ closeBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
 closeBtn.Text = "X"
 closeBtn.TextColor3 = Color3.new(1,1,1)
 closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextScaled = true
+closeBtn.TextSize = 20
 Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
 
 ------------------------------------------------------------
@@ -268,8 +344,21 @@ noclipBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
+highlightBtn.MouseButton1Click:Connect(function()
+	if not highlightEnabled then
+		enableHighlight()
+		highlightBtn.Text = "Highlight: ON"
+		highlightBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
+	else
+		disableHighlight()
+		highlightBtn.Text = "Highlight: OFF"
+		highlightBtn.BackgroundColor3 = Color3.fromRGB(200, 200, 0)
+	end
+end)
+
 closeBtn.MouseButton1Click:Connect(function()
 	NOFLY()
 	disableNoclip()
+	disableHighlight()
 	gui:Destroy()
 end)
