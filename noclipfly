@@ -17,6 +17,7 @@ local QEfly = true
 local iyflyspeed = 1
 local vehicleflyspeed = 1
 local flyKeyDown, flyKeyUp
+local flyToggleEnabled = false -- Toggle aktif setelah user nyalakan Fly via UI
 
 local Clip = false
 local Noclipping
@@ -147,7 +148,6 @@ local function sFLY(vfly)
 
 	local T = getRoot(char)
 	local CONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
-	local lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
 	local SPEED = 0
 
 	local function FLY()
@@ -159,7 +159,7 @@ local function sFLY(vfly)
 		BV.Parent = T
 		BG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
 		BG.CFrame = T.CFrame
-		BV.Velocity = Vector3.new(0, 0, 0)
+		BV.Velocity = Vector3.zero
 		BV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
 
 		task.spawn(function()
@@ -179,9 +179,8 @@ local function sFLY(vfly)
 					BV.Velocity = ((camera.CFrame.LookVector * (CONTROL.F + CONTROL.B)) +
 						((camera.CFrame * CFrame.new(CONTROL.L + CONTROL.R,
 						(CONTROL.F + CONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).p) - camera.CFrame.p)) * SPEED
-					lCONTROL = {F = CONTROL.F, B = CONTROL.B, L = CONTROL.L, R = CONTROL.R}
 				else
-					BV.Velocity = Vector3.new(0, 0, 0)
+					BV.Velocity = Vector3.zero
 				end
 				BG.CFrame = camera.CFrame
 			until not FLYING
@@ -197,8 +196,8 @@ local function sFLY(vfly)
 		elseif input.KeyCode == Enum.KeyCode.S then CONTROL.B = -iyflyspeed
 		elseif input.KeyCode == Enum.KeyCode.A then CONTROL.L = -iyflyspeed
 		elseif input.KeyCode == Enum.KeyCode.D then CONTROL.R = iyflyspeed
-		elseif input.KeyCode == Enum.KeyCode.E then CONTROL.Q = iyflyspeed*2
-		elseif input.KeyCode == Enum.KeyCode.Q then CONTROL.E = -iyflyspeed*2 end
+		elseif input.KeyCode == Enum.KeyCode.E then CONTROL.Q = iyflyspeed * 2
+		elseif input.KeyCode == Enum.KeyCode.Q then CONTROL.E = -iyflyspeed * 2 end
 	end)
 
 	flyKeyUp = UserInputService.InputEnded:Connect(function(input)
@@ -263,7 +262,6 @@ frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.Active = true
 frame.Draggable = true
 frame.Parent = gui
-
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
 
 local title = Instance.new("TextLabel", frame)
@@ -316,19 +314,38 @@ closeBtn.TextSize = 20
 Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
 
 ------------------------------------------------------------
--- BUTTON LOGIC
+-- BUTTON & TOGGLE LOGIC
 ------------------------------------------------------------
 flyBtn.MouseButton1Click:Connect(function()
+	if not flyToggleEnabled then flyToggleEnabled = true end
+
 	if not FLYING then
 		sFLY(false)
 		flyBtn.Text = "Fly: ON"
 		flyBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
-		notify("Fly", "Fly Enabled")
+		notify("Fly", "Fly Enabled (Press T to toggle)")
 	else
 		NOFLY()
 		flyBtn.Text = "Fly: OFF"
 		flyBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 		notify("Fly", "Fly Disabled")
+	end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.T and flyToggleEnabled then
+		if FLYING then
+			NOFLY()
+			flyBtn.Text = "Fly: OFF"
+			flyBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+			notify("Fly", "Fly Disabled (T)")
+		else
+			sFLY(false)
+			flyBtn.Text = "Fly: ON"
+			flyBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
+			notify("Fly", "Fly Enabled (T)")
+		end
 	end
 end)
 
