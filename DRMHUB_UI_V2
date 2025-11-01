@@ -289,6 +289,8 @@ function Library:CreateDropdown(text, options, callback)
 	dropdown.Size = UDim2.new(0.44, 0, 0, #options * 28)
 	dropdown.BackgroundColor3 = Color3.fromRGB(25,25,35)
 	dropdown.Visible = false
+	dropdown.ZIndex = 5
+	dropdown.ClipsDescendants = true
 	cornerify(dropdown, 6)
 
 	local list = Instance.new("UIListLayout", dropdown)
