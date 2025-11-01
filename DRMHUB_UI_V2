@@ -263,6 +263,7 @@ function Library:CreateDropdown(text, options, callback)
 	holder.Size = UDim2.new(0.95, 0, 0, 36)
 	holder.BackgroundColor3 = Color3.fromRGB(30,30,38)
 	cornerify(holder, 8)
+	holder.ZIndex = 5
 	holder.Parent = parent
 
 	local label = Instance.new("TextLabel", holder)
@@ -274,6 +275,7 @@ function Library:CreateDropdown(text, options, callback)
 	label.Text = text
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextColor3 = Color3.new(1,1,1)
+	label.ZIndex = holder.ZIndex
 
 	local dropBtn = Instance.new("TextButton", holder)
 	dropBtn.Size = UDim2.new(0.44, 0, 0, 28)
@@ -283,28 +285,30 @@ function Library:CreateDropdown(text, options, callback)
 	dropBtn.TextSize = 14
 	dropBtn.Text = "Select ▼"
 	cornerify(dropBtn, 6)
+	dropBtn.ZIndex = holder.ZIndex
 
 	local dropdown = Instance.new("Frame", holder)
 	dropdown.Position = UDim2.new(0.52, 0, 1, 6)
 	dropdown.Size = UDim2.new(0.44, 0, 0, #options * 28)
 	dropdown.BackgroundColor3 = Color3.fromRGB(25,25,35)
 	dropdown.Visible = false
-	dropdown.ZIndex = 5
+	dropdown.ZIndex = holder.ZIndex
 	dropdown.ClipsDescendants = true
 	cornerify(dropdown, 6)
 
 	local list = Instance.new("UIListLayout", dropdown)
-	list.Padding = UDim.new(0,2)
+	list.Padding = UDim.new(0, 2)
 
 	for _, opt in ipairs(options) do
 		local b = Instance.new("TextButton", dropdown)
-		b.Size = UDim2.new(1,0,0,28)
+		b.Size = UDim2.new(1, 0, 0, 28)
 		b.Text = opt
 		b.Font = Enum.Font.Gotham
 		b.TextSize = 14
 		b.BackgroundColor3 = Color3.fromRGB(35,35,45)
 		b.TextColor3 = Color3.new(1,1,1)
 		cornerify(b, 4)
+		b.ZIndex = dropdown.ZIndex
 		b.MouseButton1Click:Connect(function()
 			dropBtn.Text = opt .. " ▼"
 			dropdown.Visible = false
@@ -315,6 +319,7 @@ function Library:CreateDropdown(text, options, callback)
 	dropBtn.MouseButton1Click:Connect(function()
 		dropdown.Visible = not dropdown.Visible
 	end)
+
 	return holder
 end
 
