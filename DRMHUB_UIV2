@@ -325,113 +325,89 @@ end
 -- GROUPS / SECTIONS
 ----------------------------------------------------------
 function Library:CreateGroup(titleText, collapsedDefault)
-	-- Instances
 	local groupFrame = Instance.new("Frame")
 	groupFrame.Size = UDim2.new(1, 0, 0, 35)
 	groupFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 	groupFrame.BorderSizePixel = 0
 	groupFrame.AutomaticSize = Enum.AutomaticSize.Y
 
-	local uicorner = Instance.new("UICorner", groupFrame)
+	local uicorner = Instance.new("UICorner")
 	uicorner.CornerRadius = UDim.new(0, 6)
+	uicorner.Parent = groupFrame
 
-	local layout = Instance.new("UIListLayout", groupFrame)
+	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 6)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = groupFrame
 
-	-- Header (button)
+	-- Header
 	local header = Instance.new("TextButton")
 	header.Size = UDim2.new(1, -10, 0, 30)
 	header.Position = UDim2.new(0, 5, 0, 5)
 	header.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-	header.TextColor3 = Color3.fromRGB(255, 255, 255)
-	header.Font = Enum.Font.GothamBold
-	header.TextSize = 14
-	header.TextXAlignment = Enum.TextXAlignment.Left
+	header.AutoButtonColor = false
+	header.Text = ""
 	header.Parent = groupFrame
-	local headCorner = Instance.new("UICorner", header)
+
+	local headCorner = Instance.new("UICorner")
 	headCorner.CornerRadius = UDim.new(0, 5)
+	headCorner.Parent = header
 
-	-- Arrow icon (separate Label so text/title is clean)
-	local arrow = Instance.new("TextLabel", header)
-	arrow.Size = UDim2.new(0, 18, 1, 0)
-	arrow.Position = UDim2.new(0, 6, 0, 0)
-	arrow.BackgroundTransparency = 1
-	arrow.Font = Enum.Font.GothamBold
-	arrow.TextSize = 14
-	arrow.TextColor3 = Color3.fromRGB(255, 255, 255)
-	arrow.TextXAlignment = Enum.TextXAlignment.Center
-	arrow.TextYAlignment = Enum.TextYAlignment.Center
+	local headerLabel = Instance.new("TextLabel")
+	headerLabel.BackgroundTransparency = 1
+	headerLabel.Size = UDim2.new(1, -10, 1, 0)
+	headerLabel.Position = UDim2.new(0, 10, 0, 0)
+	headerLabel.Font = Enum.Font.GothamBold
+	headerLabel.TextSize = 14
+	headerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	headerLabel.TextXAlignment = Enum.TextXAlignment.Left
+	headerLabel.Parent = header
 
-	-- Title label inside header (keeps arrow separate)
-	local headerTitle = Instance.new("TextLabel", header)
-	headerTitle.Size = UDim2.new(1, -30, 1, 0)
-	headerTitle.Position = UDim2.new(0, 30, 0, 0)
-	headerTitle.BackgroundTransparency = 1
-	headerTitle.Font = Enum.Font.GothamBold
-	headerTitle.TextSize = 14
-	headerTitle.TextXAlignment = Enum.TextXAlignment.Left
-	headerTitle.TextColor3 = Color3.new(1,1,1)
-	headerTitle.Text = titleText or "Group"
-
-	-- Container (holds controls)
+	-- Container (holds actual controls)
 	local container = Instance.new("Frame")
 	container.Size = UDim2.new(1, -10, 0, 0)
 	container.Position = UDim2.new(0, 5, 0, 35)
 	container.BackgroundTransparency = 1
 	container.AutomaticSize = Enum.AutomaticSize.Y
+	container.Visible = not collapsedDefault
 	container.Parent = groupFrame
 
-	local containerLayout = Instance.new("UIListLayout", container)
+	local containerLayout = Instance.new("UIListLayout")
 	containerLayout.Padding = UDim.new(0, 5)
 	containerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	containerLayout.Parent = container
 
-	local padding = Instance.new("UIPadding", container)
+	local padding = Instance.new("UIPadding")
 	padding.PaddingTop = UDim.new(0, 5)
 	padding.PaddingLeft = UDim.new(0, 5)
 	padding.PaddingRight = UDim.new(0, 5)
+	padding.Parent = container
 
-	-- state
-	local collapsed = (collapsedDefault == true)
-	container.Visible = not collapsed
+	-- Collapse logic
+	local collapsed = collapsedDefault or false
+	local TweenService = game:GetService("TweenService")
 
-	-- initialize arrow based on state
-	arrow.Text = collapsed and "►" or "▼"
-
-	-- rotate tween for arrow (uses TextLabel Rotation)
-	local function setArrowRot(coll)
-		-- 0 = down (▼), -90 = right (►)
-		local rot = coll and -90 or 0
-		-- use Tween to rotate for smoothness
-		pcall(function()
-			game:GetService("TweenService"):Create(arrow, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = rot}):Play()
-		end)
-		-- keep the textual glyph too (fallback)
-		arrow.Text = coll and "►" or "▼"
+	local function updateLabel()
+		headerLabel.Text = (collapsed and "► " or "▼ ") .. titleText
 	end
-	setArrowRot(collapsed)
+	updateLabel()
 
-	-- toggle function
 	local function toggleCollapse()
 		collapsed = not collapsed
 		container.Visible = not collapsed
-		setArrowRot(collapsed)
-		-- small header color feedback
-		local goal = collapsed and Color3.fromRGB(35,35,35) or Color3.fromRGB(45,45,45)
-		pcall(function()
-			game:GetService("TweenService"):Create(header, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundColor3 = goal}):Play()
-		end)
+		updateLabel()
+
+		TweenService:Create(header, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {
+			BackgroundColor3 = collapsed and Color3.fromRGB(35, 35, 35) or Color3.fromRGB(45, 45, 45)
+		}):Play()
 	end
 
 	header.MouseButton1Click:Connect(toggleCollapse)
 
-	-- wrapper object that inherits Library methods
-	local group = setmetatable({
-		Frame = groupFrame,
-		Container = container,
-		Header = header,
-	}, { __index = Library })
-
+	-- Wrapper for external access
+	local group = {}
+	group.Frame = groupFrame
+	group.Container = container
 	function group:MountTo(parent)
 		groupFrame.Parent = parent
 	end
