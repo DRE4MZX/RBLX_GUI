@@ -325,20 +325,20 @@ end
 -- GROUPS / SECTIONS
 ----------------------------------------------------------
 function Library:CreateGroup(titleText, collapsedDefault)
-	local group = Instance.new("Frame")
-	group.Size = UDim2.new(1, 0, 0, 35)
-	group.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-	group.BorderSizePixel = 0
-	group.AutomaticSize = Enum.AutomaticSize.Y
+	local groupFrame = Instance.new("Frame")
+	groupFrame.Size = UDim2.new(1, 0, 0, 35)
+	groupFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	groupFrame.BorderSizePixel = 0
+	groupFrame.AutomaticSize = Enum.AutomaticSize.Y
 
 	local uicorner = Instance.new("UICorner")
 	uicorner.CornerRadius = UDim.new(0, 6)
-	uicorner.Parent = group
+	uicorner.Parent = groupFrame
 
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 6)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Parent = group
+	layout.Parent = groupFrame
 
 	-- Header
 	local header = Instance.new("TextButton")
@@ -350,7 +350,7 @@ function Library:CreateGroup(titleText, collapsedDefault)
 	header.Font = Enum.Font.GothamBold
 	header.TextSize = 14
 	header.TextXAlignment = Enum.TextXAlignment.Left
-	header.Parent = group
+	header.Parent = groupFrame
 
 	local headCorner = Instance.new("UICorner")
 	headCorner.CornerRadius = UDim.new(0, 5)
@@ -363,7 +363,7 @@ function Library:CreateGroup(titleText, collapsedDefault)
 	container.BackgroundTransparency = 1
 	container.AutomaticSize = Enum.AutomaticSize.Y
 	container.Visible = not collapsedDefault
-	container.Parent = group
+	container.Parent = groupFrame
 
 	local containerLayout = Instance.new("UIListLayout")
 	containerLayout.Padding = UDim.new(0, 5)
@@ -377,19 +377,14 @@ function Library:CreateGroup(titleText, collapsedDefault)
 	padding.Parent = container
 
 	local collapsed = collapsedDefault or false
-
-	-- Toggle collapse on click
 	local TweenService = game:GetService("TweenService")
 
 	local function toggleCollapse()
 		collapsed = not collapsed
 		container.Visible = not collapsed
-
-		-- Arrow rotation animation
 		local arrow = string.find(header.Text, "►") and "▼" or "►"
 		header.Text = arrow .. "  " .. titleText
 
-		-- Optional small scale animation
 		TweenService:Create(header, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {
 			BackgroundColor3 = collapsed and Color3.fromRGB(35,35,35) or Color3.fromRGB(45,45,45)
 		}):Play()
@@ -397,8 +392,16 @@ function Library:CreateGroup(titleText, collapsedDefault)
 
 	header.MouseButton1Click:Connect(toggleCollapse)
 
-	-- Store container reference
+	-- 📦 Return table wrapper instead of Frame
+	local group = {}
+	group.Frame = groupFrame
 	group.Container = container
+
+	-- Optional helper to parent group into window
+	function group:MountTo(parent)
+		groupFrame.Parent = parent
+	end
+
 	return group
 end
 
