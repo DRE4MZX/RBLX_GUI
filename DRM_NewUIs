@@ -356,7 +356,7 @@ function Library:CreateGroup(titleText, collapsedDefault)
 	headCorner.CornerRadius = UDim.new(0, 5)
 	headCorner.Parent = header
 
-	-- Container (holds actual controls)
+	-- Container
 	local container = Instance.new("Frame")
 	container.Size = UDim2.new(1, -10, 0, 0)
 	container.Position = UDim2.new(0, 5, 0, 35)
@@ -377,27 +377,24 @@ function Library:CreateGroup(titleText, collapsedDefault)
 	padding.Parent = container
 
 	local collapsed = collapsedDefault or false
-	local TweenService = game:GetService("TweenService")
 
 	local function toggleCollapse()
 		collapsed = not collapsed
 		container.Visible = not collapsed
 		local arrow = string.find(header.Text, "►") and "▼" or "►"
 		header.Text = arrow .. "  " .. titleText
-
-		TweenService:Create(header, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {
+		game:GetService("TweenService"):Create(header, TweenInfo.new(0.15), {
 			BackgroundColor3 = collapsed and Color3.fromRGB(35,35,35) or Color3.fromRGB(45,45,45)
 		}):Play()
 	end
-
 	header.MouseButton1Click:Connect(toggleCollapse)
 
-	-- 📦 Return table wrapper instead of Frame
-	local group = {}
-	group.Frame = groupFrame
-	group.Container = container
+	-- 📦 Return wrapper inheriting Library methods
+	local group = setmetatable({
+		Frame = groupFrame,
+		Container = container,
+	}, { __index = Library })
 
-	-- Optional helper to parent group into window
 	function group:MountTo(parent)
 		groupFrame.Parent = parent
 	end
