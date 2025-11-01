@@ -142,7 +142,7 @@ function Library:CreateWindow(titleText)
 		minimized = not minimized
 
 		for _, obj in ipairs(frame:GetChildren()) do
-			if obj ~= title then
+			if obj ~= title and obj:IsA("GuiObject") and not obj:IsDescendantOf(title) then
 				obj.Visible = not minimized
 			end
 		end
