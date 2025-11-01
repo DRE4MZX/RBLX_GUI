@@ -92,6 +92,15 @@ function Library:CreateWindow(titleText)
 	container.Position = UDim2.new(0, 0, 0, 36)
 	container.BackgroundTransparency = 1
 	container.ScrollBarThickness = 6
+
+	-- ✨ Added padding here
+	local padding = Instance.new("UIPadding")
+	padding.Parent = container
+	padding.PaddingTop = UDim.new(0, 10)
+	padding.PaddingLeft = UDim.new(0, 8)
+	padding.PaddingRight = UDim.new(0, 8)
+	padding.PaddingBottom = UDim.new(0, 8)
+
 	local layout = Instance.new("UIListLayout", container)
 	layout.Padding = UDim.new(0, 6)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
