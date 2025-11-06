@@ -1,0 +1,73 @@
+--// Services
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+--// Target posisi
+local position = Vector3.new(62.3542824, 171.815674, 434.011444)
+
+--// Buat Part tak terlihat (anchor Billboard)
+local marker = Instance.new("Part")
+marker.Anchored = true
+marker.CanCollide = false
+marker.Transparency = 1
+marker.Size = Vector3.new(0.5, 0.5, 0.5)
+marker.Position = position
+marker.Name = "TextMarker"
+marker.Parent = Workspace
+
+--// Buat BillboardGui
+local billboard = Instance.new("BillboardGui")
+billboard.Adornee = marker
+billboard.Size = UDim2.new(0, 200, 0, 50)
+billboard.AlwaysOnTop = true -- biar gak ketutupan
+billboard.LightInfluence = 0
+billboard.Parent = marker
+
+--// Frame utama
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(1, 0, 1, 0)
+frame.BackgroundTransparency = 1
+frame.Parent = billboard
+
+--// Titik hijau
+local dot = Instance.new("Frame")
+dot.Size = UDim2.new(0, 10, 0, 10)
+dot.Position = UDim2.new(0, 5, 0.5, -5)
+dot.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+dot.BorderSizePixel = 0
+dot.Parent = frame
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1, 0)
+corner.Parent = dot
+
+--// Teks
+local textLabel = Instance.new("TextLabel")
+textLabel.Size = UDim2.new(1, -20, 1, 0)
+textLabel.Position = UDim2.new(0, 20, 0, 0)
+textLabel.BackgroundTransparency = 1
+textLabel.Text = "PATUNG MBUD"
+textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+textLabel.TextStrokeTransparency = 0.3
+textLabel.TextScaled = true
+textLabel.Font = Enum.Font.GothamBold
+textLabel.Parent = frame
+
+--// Offset posisi di atas objek
+RunService.RenderStepped:Connect(function()
+	if marker and marker.Parent then
+		billboard.StudsOffset = Vector3.new(0, 2, 0)
+	end
+end)
+
+--// Toggle dengan tombol P
+local visible = true
+
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if input.KeyCode == Enum.KeyCode.P then
+		visible = not visible
+		billboard.Enabled = visible
+		print("[Marker] Visibility:", visible and "ON" or "OFF")
+	end
+end)
