@@ -197,3 +197,5 @@ function DRMHub:AddButton(opts)
 
 	return btn
 end
+
+return DRMHub
