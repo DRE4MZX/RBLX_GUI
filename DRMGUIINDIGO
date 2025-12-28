@@ -1,0 +1,189 @@
+-- =========================
+-- DRM HUB UI LIBRARY v2
+-- =========================
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local DRMHub = {}
+DRMHub.__index = DRMHub
+
+-- =========================
+-- UTILS
+-- =========================
+local function corner(obj, r)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, r)
+	c.Parent = obj
+end
+
+local function tween(obj, props, t)
+	TweenService:Create(obj, TweenInfo.new(t or 0.2), props):Play()
+end
+
+-- =========================
+-- WINDOW
+-- =========================
+function DRMHub:CreateWindow(opts)
+	opts = opts or {}
+
+	if player.PlayerGui:FindFirstChild("DRMHub") then
+		player.PlayerGui.DRMHub:Destroy()
+	end
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "DRMHub"
+	gui.ResetOnSpawn = false
+	gui.Parent = player.PlayerGui
+
+	local main = Instance.new("Frame", gui)
+	main.Size = opts.Size or UDim2.fromOffset(340, 260)
+	main.Position = opts.Position or UDim2.fromScale(0.05, 0.35)
+	main.BackgroundColor3 = Color3.fromRGB(28,24,60)
+	main.BorderSizePixel = 0
+	corner(main,14)
+
+	-- HEADER
+	local header = Instance.new("Frame", main)
+	header.Size = UDim2.new(1,0,0,42)
+	header.BackgroundColor3 = Color3.fromRGB(60,55,130)
+	header.BorderSizePixel = 0
+	corner(header,14)
+
+	local title = Instance.new("TextLabel", header)
+	title.BackgroundTransparency = 1
+	title.Size = UDim2.new(1,-60,1,0)
+	title.Position = UDim2.fromOffset(12,0)
+	title.TextXAlignment = Left
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 14
+	title.TextColor3 = Color3.fromRGB(235,235,255)
+	title.Text = opts.Title or "DRMHub"
+
+	local close = Instance.new("TextButton", header)
+	close.Size = UDim2.fromOffset(32,24)
+	close.Position = UDim2.new(1,-36,0.5,-12)
+	close.Text = "X"
+	close.Font = Enum.Font.GothamBold
+	close.TextSize = 14
+	close.TextColor3 = Color3.fromRGB(255,120,120)
+	close.BackgroundColor3 = Color3.fromRGB(90,60,120)
+	corner(close,6)
+
+	close.MouseButton1Click:Connect(function()
+		gui:Destroy()
+	end)
+
+	-- CONTENT
+	local content = Instance.new("ScrollingFrame", main)
+	content.Position = UDim2.fromOffset(0,48)
+	content.Size = UDim2.new(1,0,1,-48)
+	content.CanvasSize = UDim2.new()
+	content.ScrollBarImageTransparency = 1
+	content.BackgroundTransparency = 1
+
+	local layout = Instance.new("UIListLayout", content)
+	layout.Padding = UDim.new(0,10)
+	layout.HorizontalAlignment = Center
+
+	layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		content.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 12)
+	end)
+
+	self.Gui = gui
+	self.Main = main
+	self.Content = content
+
+	return self
+end
+
+-- =========================
+-- STATUS
+-- =========================
+function DRMHub:AddStatus(text)
+	local lbl = Instance.new("TextLabel", self.Content)
+	lbl.Size = UDim2.new(1,-24,0,32)
+	lbl.BackgroundTransparency = 1
+	lbl.Font = Enum.Font.GothamBold
+	lbl.TextSize = 14
+	lbl.TextXAlignment = Left
+	lbl.Text = text or "STATUS"
+	lbl.TextColor3 = Color3.fromRGB(255,120,120)
+
+	return {
+		Set = function(_, txt, color)
+			lbl.Text = txt
+			if color then lbl.TextColor3 = color end
+		end
+	}
+end
+
+-- =========================
+-- TOGGLE
+-- =========================
+function DRMHub:AddToggle(opts)
+	opts = opts or {}
+
+	local btn = Instance.new("TextButton", self.Content)
+	btn.Size = UDim2.new(1,-24,0,44)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 14
+	btn.TextColor3 = Color3.fromRGB(240,240,255)
+	btn.BackgroundColor3 = Color3.fromRGB(80,70,160)
+	corner(btn,10)
+
+	local state = opts.Default or false
+	local callback = opts.Callback
+
+	local function refresh()
+		btn.Text = state and opts.OnText or opts.OffText
+		tween(btn,{
+			BackgroundColor3 = state
+				and Color3.fromRGB(60,180,120)
+				or Color3.fromRGB(80,70,160)
+		})
+	end
+
+	btn.MouseButton1Click:Connect(function()
+		state = not state
+		if callback then callback(state) end
+		refresh()
+	end)
+
+	refresh()
+
+	return {
+		Get = function() return state end,
+		Set = function(_, v)
+			state = v
+			refresh()
+		end
+	}
+end
+
+-- =========================
+-- BUTTON
+-- =========================
+function DRMHub:AddButton(opts)
+	opts = opts or {}
+
+	local btn = Instance.new("TextButton", self.Content)
+	btn.Size = UDim2.new(1,-24,0,40)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 14
+	btn.TextColor3 = Color3.fromRGB(240,240,255)
+	btn.Text = opts.Text or "BUTTON"
+	btn.BackgroundColor3 = Color3.fromRGB(90,80,170)
+	corner(btn,10)
+
+	btn.MouseButton1Click:Connect(function()
+		if opts.Callback then
+			opts.Callback()
+		end
+	end)
+
+	return btn
+end
+
+return DRMHub
