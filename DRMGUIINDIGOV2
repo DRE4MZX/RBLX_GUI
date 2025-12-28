@@ -1,0 +1,266 @@
+-- =========================
+-- DRM HUB UI LIBRARY
+-- Mobile + Desktop Safe
+-- =========================
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local DRMHub = {}
+DRMHub.__index = DRMHub
+
+-- =========================
+-- UTILS
+-- =========================
+local function corner(obj, r)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, r)
+	c.Parent = obj
+end
+
+local function tween(obj, props, t)
+	TweenService:Create(obj, TweenInfo.new(t or 0.2), props):Play()
+end
+
+-- =========================
+-- CREATE WINDOW
+-- =========================
+function DRMHub:CreateWindow(cfg)
+	cfg = cfg or {}
+
+	-- clean old
+	local old = player.PlayerGui:FindFirstChild("DRMHub")
+	if old then old:Destroy() end
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "DRMHub"
+	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true
+	gui.Parent = player.PlayerGui
+
+	-- scale mobile
+	local scale = Instance.new("UIScale", gui)
+	scale.Scale = UIS.TouchEnabled and 0.95 or 1
+
+	local main = Instance.new("Frame", gui)
+	main.Size = cfg.Size or UDim2.fromOffset(320,190)
+	main.Position = cfg.Position or UDim2.fromScale(0.05,0.35)
+	main.BackgroundColor3 = Color3.fromRGB(28,24,60)
+	main.BorderSizePixel = 0
+	corner(main,14)
+
+	-- header
+	local header = Instance.new("Frame", main)
+	header.Size = UDim2.new(1,0,0,42)
+	header.BackgroundColor3 = Color3.fromRGB(60,55,130)
+	header.BorderSizePixel = 0
+	corner(header,14)
+
+	local title = Instance.new("TextLabel", header)
+	title.BackgroundTransparency = 1
+	title.Size = UDim2.new(1,-90,1,0)
+	title.Position = UDim2.fromOffset(12,0)
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 14
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextYAlignment = Enum.TextYAlignment.Center
+	title.TextColor3 = Color3.fromRGB(235,235,255)
+	title.Text = cfg.Title or "DRMHub"
+
+	local close = Instance.new("TextButton", header)
+	close.Size = UDim2.fromOffset(32,24)
+	close.Position = UDim2.new(1,-36,0.5,-12)
+	close.Text = "X"
+	close.Font = Enum.Font.GothamBold
+	close.TextSize = 14
+	close.TextColor3 = Color3.fromRGB(255,120,120)
+	close.BackgroundColor3 = Color3.fromRGB(90,60,120)
+	corner(close,6)
+
+	local mini = Instance.new("TextButton", header)
+	mini.Size = UDim2.fromOffset(32,24)
+	mini.Position = UDim2.new(1,-72,0.5,-12)
+	mini.Text = "—"
+	mini.Font = Enum.Font.GothamBold
+	mini.TextSize = 16
+	mini.TextColor3 = Color3.fromRGB(220,220,255)
+	mini.BackgroundColor3 = Color3.fromRGB(90,60,120)
+	corner(mini,6)
+
+	local body = Instance.new("Frame", main)
+	body.Position = UDim2.fromOffset(0,48)
+	body.Size = UDim2.new(1,0,1,-48)
+	body.BackgroundTransparency = 1
+
+	-- drag (mouse + touch)
+	do
+		local dragging, startPos, startInput
+		header.InputBegan:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1
+			or i.UserInputType == Enum.UserInputType.Touch then
+				dragging = true
+				startInput = i.Position
+				startPos = main.Position
+			end
+		end)
+		UIS.InputChanged:Connect(function(i)
+			if dragging then
+				if i.UserInputType == Enum.UserInputType.MouseMovement
+				or i.UserInputType == Enum.UserInputType.Touch then
+					local delta = i.Position - startInput
+					main.Position = UDim2.new(
+						startPos.X.Scale,
+						startPos.X.Offset + delta.X,
+						startPos.Y.Scale,
+						startPos.Y.Offset + delta.Y
+					)
+				end
+			end
+		end)
+		UIS.InputEnded:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1
+			or i.UserInputType == Enum.UserInputType.Touch then
+				dragging = false
+			end
+		end)
+	end
+
+	local minimized = false
+	mini.MouseButton1Click:Connect(function()
+		minimized = not minimized
+		body.Visible = not minimized
+		main.Size = minimized and UDim2.fromOffset(320,42) or UDim2.fromOffset(320,190)
+	end)
+
+	close.MouseButton1Click:Connect(function()
+		gui:Destroy()
+	end)
+
+	self.Gui = gui
+	self.Body = body
+	self.Y = 8
+
+	return self
+end
+
+-- =========================
+-- STATUS
+-- =========================
+function DRMHub:AddStatus(text)
+	local lbl = Instance.new("TextLabel", self.Body)
+	lbl.Position = UDim2.fromOffset(12,self.Y)
+	lbl.Size = UDim2.new(1,-24,0,32)
+	lbl.BackgroundTransparency = 1
+	lbl.Font = Enum.Font.GothamBold
+	lbl.TextSize = 14
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.TextColor3 = Color3.fromRGB(255,120,120)
+	lbl.Text = text or "STATUS"
+
+	self.Y += 40
+
+	return {
+		Set = function(_, txt, col)
+			lbl.Text = txt
+			if col then lbl.TextColor3 = col end
+		end
+	}
+end
+
+-- =========================
+-- TOGGLE
+-- =========================
+function DRMHub:AddToggle(cfg)
+	local btn = Instance.new("TextButton", self.Body)
+	btn.Position = UDim2.fromOffset(12,self.Y)
+	btn.Size = UDim2.new(1,-24,0,44)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 14
+	btn.TextColor3 = Color3.fromRGB(240,240,255)
+	btn.BackgroundColor3 = Color3.fromRGB(80,70,160)
+	btn.AutoButtonColor = false
+	corner(btn,10)
+
+	local state = cfg.Default or false
+
+	local function refresh()
+		btn.Text = state and cfg.OnText or cfg.OffText
+		tween(btn,{
+			BackgroundColor3 = state
+				and Color3.fromRGB(60,180,120)
+				or Color3.fromRGB(80,70,160)
+		})
+	end
+
+	btn.MouseButton1Click:Connect(function()
+		state = not state
+		if cfg.Callback then
+			task.spawn(cfg.Callback,state)
+		end
+		refresh()
+	end)
+
+	refresh()
+	self.Y += 56
+
+	return {
+		Get = function() return state end,
+		Set = function(_,v) state=v refresh() end
+	}
+end
+
+-- =========================
+-- BUTTON
+-- =========================
+function DRMHub:AddButton(cfg)
+	local btn = Instance.new("TextButton", self.Body)
+	btn.Position = UDim2.fromOffset(12, self.Y)
+	btn.Size = UDim2.new(1, -24, 0, 42)
+	btn.BackgroundColor3 = Color3.fromRGB(90,80,180)
+	btn.TextColor3 = Color3.fromRGB(240,240,255)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 14
+	btn.Text = cfg.Text or "BUTTON"
+	btn.AutoButtonColor = false
+	btn.BorderSizePixel = 0
+	corner(btn,10)
+
+	btn.MouseButton1Click:Connect(function()
+		if cfg.Callback then
+			task.spawn(cfg.Callback)
+		end
+	end)
+
+	-- hover effect (desktop)
+	btn.MouseEnter:Connect(function()
+		tween(btn, {BackgroundColor3 = Color3.fromRGB(120,100,220)}, 0.15)
+	end)
+	btn.MouseLeave:Connect(function()
+		tween(btn, {BackgroundColor3 = Color3.fromRGB(90,80,180)}, 0.15)
+	end)
+
+	self.Y += 52
+end
+
+
+-- =========================
+-- INFO TEXT
+-- =========================
+function DRMHub:AddInfo(text)
+	local lbl = Instance.new("TextLabel", self.Body)
+	lbl.Position = UDim2.fromOffset(12,self.Y)
+	lbl.Size = UDim2.new(1,-24,0,36)
+	lbl.BackgroundTransparency = 1
+	lbl.TextWrapped = true
+	lbl.Font = Enum.Font.Gotham
+	lbl.TextSize = 12
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.TextColor3 = Color3.fromRGB(180,180,220)
+	lbl.Text = text or ""
+
+	self.Y += 40
+end
+
+return DRMHub
