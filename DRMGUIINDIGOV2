@@ -1,11 +1,11 @@
--- =========================
--- DRM HUB UI LIBRARY v2
--- =========================
+-- SERVICES
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
+
+-- LIB
 local DRMHub = {}
 DRMHub.__index = DRMHub
 
@@ -28,48 +28,54 @@ end
 function DRMHub:CreateWindow(opts)
 	opts = opts or {}
 
-	if player.PlayerGui:FindFirstChild("DRMHub") then
-		player.PlayerGui.DRMHub:Destroy()
-	end
+	-- CLEAN OLD
+	local old = player.PlayerGui:FindFirstChild("DRMHub")
+	if old then old:Destroy() end
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "DRMHub"
 	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true
 	gui.Parent = player.PlayerGui
+
+	-- SCALE (HP FRIENDLY)
+	local scale = Instance.new("UIScale", gui)
+	scale.Scale = (UIS.TouchEnabled and 0.95) or 1
 
 	local main = Instance.new("Frame", gui)
 	main.Size = opts.Size or UDim2.fromOffset(340, 260)
 	main.Position = opts.Position or UDim2.fromScale(0.05, 0.35)
 	main.BackgroundColor3 = Color3.fromRGB(28,24,60)
 	main.BorderSizePixel = 0
-	corner(main,14)
+	corner(main, 14)
 
 	-- HEADER
 	local header = Instance.new("Frame", main)
 	header.Size = UDim2.new(1,0,0,42)
 	header.BackgroundColor3 = Color3.fromRGB(60,55,130)
 	header.BorderSizePixel = 0
-	corner(header,14)
+	corner(header, 14)
 
 	local title = Instance.new("TextLabel", header)
 	title.BackgroundTransparency = 1
 	title.Size = UDim2.new(1,-60,1,0)
 	title.Position = UDim2.fromOffset(12,0)
-	title.TextXAlignment = Left
 	title.Font = Enum.Font.GothamBold
 	title.TextSize = 14
 	title.TextColor3 = Color3.fromRGB(235,235,255)
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextYAlignment = Enum.TextYAlignment.Center
 	title.Text = opts.Title or "DRMHub"
 
 	local close = Instance.new("TextButton", header)
 	close.Size = UDim2.fromOffset(32,24)
 	close.Position = UDim2.new(1,-36,0.5,-12)
-	close.Text = "X"
 	close.Font = Enum.Font.GothamBold
 	close.TextSize = 14
+	close.Text = "X"
 	close.TextColor3 = Color3.fromRGB(255,120,120)
 	close.BackgroundColor3 = Color3.fromRGB(90,60,120)
-	corner(close,6)
+	corner(close, 6)
 
 	close.MouseButton1Click:Connect(function()
 		gui:Destroy()
@@ -82,10 +88,11 @@ function DRMHub:CreateWindow(opts)
 	content.CanvasSize = UDim2.new()
 	content.ScrollBarImageTransparency = 1
 	content.BackgroundTransparency = 1
+	content.AutomaticCanvasSize = Enum.AutomaticSize.None
 
 	local layout = Instance.new("UIListLayout", content)
 	layout.Padding = UDim.new(0,10)
-	layout.HorizontalAlignment = Center
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 	layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 		content.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 12)
@@ -107,7 +114,9 @@ function DRMHub:AddStatus(text)
 	lbl.BackgroundTransparency = 1
 	lbl.Font = Enum.Font.GothamBold
 	lbl.TextSize = 14
-	lbl.TextXAlignment = Left
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.TextYAlignment = Enum.TextYAlignment.Center
+	lbl.TextWrapped = true
 	lbl.Text = text or "STATUS"
 	lbl.TextColor3 = Color3.fromRGB(255,120,120)
 
@@ -131,10 +140,10 @@ function DRMHub:AddToggle(opts)
 	btn.TextSize = 14
 	btn.TextColor3 = Color3.fromRGB(240,240,255)
 	btn.BackgroundColor3 = Color3.fromRGB(80,70,160)
-	corner(btn,10)
+	btn.AutoButtonColor = false
+	corner(btn, 10)
 
 	local state = opts.Default or false
-	local callback = opts.Callback
 
 	local function refresh()
 		btn.Text = state and opts.OnText or opts.OffText
@@ -147,7 +156,9 @@ function DRMHub:AddToggle(opts)
 
 	btn.MouseButton1Click:Connect(function()
 		state = not state
-		if callback then callback(state) end
+		if opts.Callback then
+			task.spawn(opts.Callback, state)
+		end
 		refresh()
 	end)
 
@@ -175,15 +186,14 @@ function DRMHub:AddButton(opts)
 	btn.TextColor3 = Color3.fromRGB(240,240,255)
 	btn.Text = opts.Text or "BUTTON"
 	btn.BackgroundColor3 = Color3.fromRGB(90,80,170)
-	corner(btn,10)
+	btn.AutoButtonColor = true
+	corner(btn, 10)
 
 	btn.MouseButton1Click:Connect(function()
 		if opts.Callback then
-			opts.Callback()
+			task.spawn(opts.Callback)
 		end
 	end)
 
 	return btn
 end
-
-return DRMHub
