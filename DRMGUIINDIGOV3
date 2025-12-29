@@ -267,6 +267,124 @@ function DRMHub:AddButton(cfg)
 end
 
 -- =========================
+-- DROPDOWN
+-- =========================
+function DRMHub:AddDropdown(cfg)
+	cfg = cfg or {}
+	local listData = cfg.List or {}
+	local opened = false
+
+	-- HOLDER
+	local holder = Instance.new("Frame", self.Body)
+	holder.Size = UDim2.new(1,0,0,42)
+	holder.BackgroundColor3 = Color3.fromRGB(90,80,180)
+	holder.BorderSizePixel = 0
+	corner(holder,10)
+
+	-- LABEL
+	local label = Instance.new("TextLabel", holder)
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.new(1,-40,1,0)
+	label.Position = UDim2.fromOffset(12,0)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 13
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextColor3 = Color3.fromRGB(240,240,255)
+	label.Text = cfg.Text or "DROPDOWN"
+
+	-- ICON
+	local arrow = Instance.new("TextLabel", holder)
+	arrow.BackgroundTransparency = 1
+	arrow.Size = UDim2.fromOffset(24,24)
+	arrow.Position = UDim2.new(1,-30,0.5,-12)
+	arrow.Font = Enum.Font.GothamBold
+	arrow.TextSize = 16
+	arrow.TextColor3 = Color3.fromRGB(240,240,255)
+	arrow.Text = "▼"
+
+	-- LIST FRAME
+	local listFrame = Instance.new("Frame", self.Body)
+	listFrame.Visible = false
+	listFrame.Size = UDim2.new(1,-24,0,0)
+	listFrame.BackgroundColor3 = Color3.fromRGB(70,60,150)
+	listFrame.BorderSizePixel = 0
+	corner(listFrame,10)
+
+	local uiList = Instance.new("UIListLayout", listFrame)
+	uiList.Padding = UDim.new(0,6)
+
+	local pad = Instance.new("UIPadding", listFrame)
+	pad.PaddingTop = UDim.new(0,6)
+	pad.PaddingBottom = UDim.new(0,6)
+	pad.PaddingLeft = UDim.new(0,6)
+	pad.PaddingRight = UDim.new(0,6)
+
+	-- BUILD LIST
+	local function rebuild()
+		for _, v in ipairs(listFrame:GetChildren()) do
+			if v:IsA("TextButton") then
+				v:Destroy()
+			end
+		end
+
+		for _, text in ipairs(listData) do
+			local btn = Instance.new("TextButton", listFrame)
+			btn.Size = UDim2.new(1,0,0,32)
+			btn.BackgroundColor3 = Color3.fromRGB(100,90,200)
+			btn.TextColor3 = Color3.fromRGB(240,240,255)
+			btn.Font = Enum.Font.Gotham
+			btn.TextSize = 13
+			btn.Text = text
+			btn.BorderSizePixel = 0
+			corner(btn,8)
+
+			btn.MouseButton1Click:Connect(function()
+				label.Text = (cfg.Text or "DROPDOWN") .. " : " .. text
+				opened = false
+				listFrame.Visible = false
+				arrow.Text = "▼"
+
+				if cfg.Callback then
+					task.spawn(cfg.Callback, text)
+				end
+			end)
+		end
+
+		task.wait()
+		listFrame.Size = UDim2.new(1,-24,0,uiList.AbsoluteContentSize.Y + 12)
+	end
+
+	rebuild()
+
+	-- TOGGLE OPEN
+	holder.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1
+		or i.UserInputType == Enum.UserInputType.Touch then
+			opened = not opened
+			listFrame.Visible = opened
+			arrow.Text = opened and "▲" or "▼"
+		end
+	end)
+
+	-- AUTO RESIZE WINDOW
+	uiList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		if opened then
+			listFrame.Size = UDim2.new(1,-24,0,uiList.AbsoluteContentSize.Y + 12)
+		end
+	end)
+
+	return {
+		SetList = function(_, newList)
+			listData = newList or {}
+			rebuild()
+		end,
+		SetText = function(_, txt)
+			label.Text = txt
+		end
+	}
+end
+
+-- =========================
 -- INFO
 -- =========================
 function DRMHub:AddInfo(text)
