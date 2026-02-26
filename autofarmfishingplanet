@@ -1,0 +1,96 @@
+local VIM = game:GetService("VirtualInputManager")
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local rodGui = player.PlayerGui:WaitForChild("RodGui")
+
+local progress = rodGui
+    :WaitForChild("Frame")
+    :WaitForChild("VerticalProgressBar")
+    :WaitForChild("Progress")
+
+local starContainer = rodGui
+    :WaitForChild("Frame")
+    :WaitForChild("BottomContainer")
+    :WaitForChild("StarProgressBars")
+
+local debugPrint = false 
+local RELEASE_POINT = 0.92
+
+_G.AutoHolds = false -- default OFF
+
+local function dprint(...)
+    if debugPrint then
+        print("[AUTOHOLD DEBUG]:", ...)
+    end
+end
+
+local function holdMouse(state)
+    VIM:SendMouseButtonEvent(0, 0, 0, state, game, 0)
+    dprint("Mouse:", state and "HOLD" or "RELEASE")
+end
+
+-- 🔥 TOGGLE K
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    
+    if input.KeyCode == Enum.KeyCode.K then
+        _G.AutoHolds = not _G.AutoHolds
+        dprint("AutoHold Toggled:", _G.AutoHolds)
+        
+        if not _G.AutoHolds then
+            holdMouse(false)
+        end
+    end
+end)
+
+local function getVisibleStars()
+    local list = {}
+
+    for _, v in pairs(starContainer:GetDescendants()) do
+        if v:IsA("Frame") and v.Name == "Progress" and v.Visible then
+            table.insert(list, v)
+        end
+    end
+
+    return list
+end
+
+task.spawn(function()
+    while true do
+        task.wait(0.02)
+
+        if not _G.AutoHolds then
+            continue
+        end
+
+        local yScale = progress.Size.Y.Scale
+        dprint("Vertical Y.Scale:", yScale)
+
+        local starList = getVisibleStars()
+        local allZero = true
+
+        for i, bar in ipairs(starList) do
+            local xScale = bar.Size.X.Scale
+            dprint("Star", i, "X.Scale:", xScale)
+
+            if xScale > 0 then
+                allZero = false
+            end
+        end
+
+        if not allZero then
+            dprint("Stars not finished -> FORCE HOLD")
+            holdMouse(true)
+        else
+            if yScale > RELEASE_POINT then
+                dprint("Above 0.95 -> RELEASE")
+                holdMouse(false)
+            else
+                dprint("Below 0.95 -> HOLD")
+                holdMouse(true)
+            end
+        end
+    end
+end)
