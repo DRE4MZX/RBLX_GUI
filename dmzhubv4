@@ -190,7 +190,7 @@ local payload = {
     username = "DMZHUB • Security Logger",
     embeds = {{
         title = "🚨 SCRIPT EXECUTED",
-        description = "**DMZHUBV4 EVADE DIGUNAKAN**",
+        description = "**DEADHUB DIGUNAKAN**",
         color = 0x5865F2, -- Discord blurple
         fields = {
             {
