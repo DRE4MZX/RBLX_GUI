@@ -1,1 +1,4 @@
-["dodifun","espalaseju"]
+_G.whitelisted = {
+    "dodifun",
+    "espalaseju"
+}
