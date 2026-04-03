@@ -1,0 +1,2730 @@
+print("x")
+
+-- ================== CONFIG ==================
+local WHITELIST_URL = "https://raw.githubusercontent.com/DRE4MZX/RBLX_GUI/refs/heads/main/accessdmzhub"
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1454758401862009038/QlwqdhSOk3haHpFgF1HczvSe9hQ5IjLD40gHuqhZfwHaSp9P9_3uG2vJtAX5Kof-SAaE"
+-- local WEBHOOK_URL = "https://discord.com/api/webhooks/"
+-- ================== ANTI DOUBLE LOAD ==================
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+
+local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local username = LocalPlayer.Name
+
+local whitelist = {}
+
+local successWL, result = pcall(function()
+    return game:HttpGet(WHITELIST_URL)
+end)
+
+if successWL and result then
+    local ok, data = pcall(function()
+        return HttpService:JSONDecode(result)
+    end)
+    if ok and type(data) == "table" then
+        whitelist = data
+    end
+end
+
+local allowed = false
+for _, v in ipairs(whitelist) do
+    if string.lower(v) == string.lower(username) then
+        allowed = true
+        break
+    end
+end
+
+if not allowed then
+    warn("❌ NOT WHITELIST:", username)
+
+    local req = (syn and syn.request) or request or http_request
+    if req then
+        req({
+            Url = WEBHOOK_URL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode({
+                content = "🚨 UNAUTHORIZED USER: "..username
+            })
+        })
+    end
+
+    LocalPlayer:Kick("❌ Kamu tidak diizinkan memakai script ini.\nSilahkan minta izin.")
+    return
+end
+
+
+if getgenv().DMZ_LOADED then
+    warn("⚠️ DMZ HUB V5 is already loaded!")
+end
+
+getgenv().DMZ_LOADED = true
+
+local success, DMZ = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/DRE4MZX/RBLX_GUI/refs/heads/main/DMZ_GUI.lua"))()
+end)
+
+-- ================== SERVICES ==================
+local Players       = game:GetService("Players")
+local LocalPlayer   = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local Camera        = workspace.CurrentCamera
+local Lighting      = game:GetService("Lighting")
+local RunService    = game:GetService("RunService")
+local UIS           = game:GetService("UserInputService")
+local HttpService   = game:GetService("HttpService")
+local TweenService  = game:GetService("TweenService")
+
+-- ================== PLAYER INFO ==================
+local username    = LocalPlayer.Name
+local displayName = LocalPlayer.DisplayName
+local userId      = LocalPlayer.UserId
+local placeId     = game.PlaceId
+local jobId       = game.JobId
+
+-- ================== TIME ==================
+local now = os.date("*t")
+local jam = string.format("%02d:%02d:%02d", now.hour, now.min, now.sec)
+local tanggal = os.date("%a %d %B %Y")
+
+-- ================== DISCORD EMBED ==================
+local payload = {
+    username = "DMZHUB • Security Logger",
+    avatar_url = "https://i.imgur.com/4M34hi2.png",
+    embeds = {{
+        title = "🚨 Script Execution Detected",
+        description = table.concat({
+            "```",
+            "DMZHUBV5 EVADE",
+            "```",
+        }, "\n"),
+        color = 0xEB4B4B, -- merah untuk alert
+        fields = {
+            {
+                name = "👤 Username",
+                value = "`" .. username .. "`",
+                inline = true
+            },
+            {
+                name = "🪪 Display Name",
+                value = "`" .. displayName .. "`",
+                inline = true
+            },
+            {
+                name = "🆔 User ID",
+                value = "`" .. tostring(userId) .. "`",
+                inline = true
+            },
+            {
+                name = "🎮 Place ID",
+                value = "`" .. tostring(placeId) .. "`",
+                inline = true
+            },
+            {
+                name = "🧩 Job ID",
+                value = "```\n" .. jobId .. "\n```",
+                inline = false
+            },
+            {
+                name = "🕒 Waktu",
+                value = "`" .. jam .. "` — `" .. tanggal .. "`",
+                inline = false
+            },
+        },
+        footer = {
+            text = "DMZHUB • Security Logger  •  " .. os.date("%d/%m/%Y %H:%M:%S"),
+            icon_url = "https://i.imgur.com/4M34hi2.png"
+        },
+        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+    }}
+}
+
+-- ================== SEND WEBHOOK ==================
+local req = (syn and syn.request) or request or http_request
+if req then
+    req({
+        Url = WEBHOOK_URL,
+        Method = "POST",
+        Headers = { ["Content-Type"] = "application/json" },
+        Body = HttpService:JSONEncode(payload)
+    })
+else
+    warn("[DMZHUB] Executor tidak mendukung HTTP request.")
+end
+
+-- =====================================================
+-- NOTIFICATION SYSTEM v2 — CARD STYLE + TWEEN
+-- TOP CENTER POSITION
+-- =====================================================
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local NotifyGui = Instance.new("ScreenGui")
+NotifyGui.Name = "DMZ_NOTIFY_GUI"
+NotifyGui.ResetOnSpawn = false
+NotifyGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+NotifyGui.Parent = playerGui
+
+local Container = Instance.new("Frame")
+Container.Parent = NotifyGui
+Container.Size = UDim2.new(1, 0, 1, 0)
+Container.BackgroundTransparency = 1
+Container.ZIndex = 29
+
+local notifications = {}
+local CARD_W  = 350
+local CARD_H  = 58
+local PADDING = 8
+local START_Y = 0.06 -- jarak dari atas layar
+
+-- ── helpers ──────────────────────────────────────────
+local TS = TweenService
+local function tw(obj, props, t, style, dir)
+    style = style or Enum.EasingStyle.Quint
+    dir   = dir   or Enum.EasingDirection.Out
+    TS:Create(obj, TweenInfo.new(t, style, dir), props):Play()
+end
+
+-- ── reposition stack (tumbuh ke bawah) ───────────────
+local function repositionAll()
+    for i, data in ipairs(notifications) do
+        local targetY = START_Y + ((i - 1) * ((CARD_H + PADDING) / Container.AbsoluteSize.Y))
+        tw(data.card, {
+            Position = UDim2.new(0.5, -(CARD_W / 2), 0, Container.AbsoluteSize.Y * targetY)
+        }, 0.35)
+    end
+end
+
+-- ── main notify function ──────────────────────────────
+function notifydmz(msg, ntype, duration)
+    duration = duration or 3
+
+    local cfg = {
+        success = { accent = Color3.fromRGB(0, 210, 120),   icon = "✓", label = "SUCCESS" },
+        error   = { accent = Color3.fromRGB(235, 75, 75),   icon = "✕", label = "ERROR"   },
+        warn    = { accent = Color3.fromRGB(255, 185, 50),  icon = "!", label = "WARNING" },
+    }
+    local c = cfg[ntype] or { accent = Color3.fromRGB(108, 92, 231), icon = "•", label = "INFO" }
+
+    -- posisi Y awal (off-screen atas) dan target
+    local targetYOffset = Container.AbsoluteSize.Y * START_Y
+    local offscreenPos  = UDim2.new(0.5, -(CARD_W / 2), 0, -CARD_H - 20)
+    local onscreenPos   = UDim2.new(0.5, -(CARD_W / 2), 0, targetYOffset)
+
+    -- ── Card ──
+    local card = Instance.new("Frame")
+    card.Parent             = Container
+    card.Size               = UDim2.new(0, CARD_W, 0, CARD_H)
+    card.AnchorPoint        = Vector2.new(0, 0)
+    card.Position           = offscreenPos
+    card.BackgroundColor3   = Color3.fromRGB(13, 13, 20)
+    card.BackgroundTransparency = 1
+    card.BorderSizePixel    = 0
+    card.ZIndex             = 30
+    card.ClipsDescendants   = true
+
+    local cc = Instance.new("UICorner")
+    cc.CornerRadius = UDim.new(0, 10)
+    cc.Parent = card
+
+    -- border stroke
+    local stroke = Instance.new("UIStroke")
+    stroke.Color            = c.accent
+    stroke.Thickness        = 1
+    stroke.Transparency     = 1 -- mulai invisible
+    stroke.ApplyStrokeMode  = Enum.ApplyStrokeMode.Border
+    stroke.Parent           = card
+
+    -- ── Left accent bar ──
+    local accentBar = Instance.new("Frame")
+    accentBar.Parent            = card
+    accentBar.Size              = UDim2.new(0, 3, 1, -16)
+    accentBar.Position          = UDim2.new(0, 0, 0, 8)
+    accentBar.BackgroundColor3  = c.accent
+    accentBar.BorderSizePixel   = 0
+    accentBar.ZIndex            = 31
+    Instance.new("UICorner", accentBar).CornerRadius = UDim.new(0, 3)
+
+    -- ── Icon circle ──
+    local iconBg = Instance.new("Frame")
+    iconBg.Parent               = card
+    iconBg.Size                 = UDim2.new(0, 30, 0, 30)
+    iconBg.Position             = UDim2.new(0, 11, 0.5, -15)
+    iconBg.BackgroundColor3     = c.accent
+    iconBg.BackgroundTransparency = 0.78
+    iconBg.BorderSizePixel      = 0
+    iconBg.ZIndex               = 31
+    Instance.new("UICorner", iconBg).CornerRadius = UDim.new(1, 0)
+
+    local iconLbl = Instance.new("TextLabel")
+    iconLbl.Parent              = iconBg
+    iconLbl.Size                = UDim2.new(1, 0, 1, 0)
+    iconLbl.BackgroundTransparency = 1
+    iconLbl.Text                = c.icon
+    iconLbl.Font                = Enum.Font.GothamBold
+    iconLbl.TextSize            = 15
+    iconLbl.TextColor3          = c.accent
+    iconLbl.TextXAlignment      = Enum.TextXAlignment.Center
+    iconLbl.TextYAlignment      = Enum.TextYAlignment.Center
+    iconLbl.ZIndex              = 32
+
+    -- ── Type label ──
+    local typeLbl = Instance.new("TextLabel")
+    typeLbl.Parent              = card
+    typeLbl.Size                = UDim2.new(1, -56, 0, 17)
+    typeLbl.Position            = UDim2.new(0, 50, 0, 9)
+    typeLbl.BackgroundTransparency = 1
+    typeLbl.Text                = c.label
+    typeLbl.Font                = Enum.Font.GothamBold
+    typeLbl.TextSize            = 10
+    typeLbl.TextColor3          = c.accent
+    typeLbl.TextXAlignment      = Enum.TextXAlignment.Left
+    typeLbl.ZIndex              = 31
+
+    -- ── Message label ──
+    local msgLbl = Instance.new("TextLabel")
+    msgLbl.Parent               = card
+    msgLbl.Size                 = UDim2.new(1, -56, 0, 22)
+    msgLbl.Position             = UDim2.new(0, 50, 0, 26)
+    msgLbl.BackgroundTransparency = 1
+    msgLbl.Text                 = msg
+    msgLbl.Font                 = Enum.Font.Gotham
+    msgLbl.TextSize             = 12
+    msgLbl.TextColor3           = Color3.fromRGB(205, 202, 228)
+    msgLbl.TextXAlignment       = Enum.TextXAlignment.Left
+    msgLbl.TextTruncate         = Enum.TextTruncate.AtEnd
+    msgLbl.ZIndex               = 31
+
+    -- ── Progress bar track ──
+    local progressTrack = Instance.new("Frame")
+    progressTrack.Parent            = card
+    progressTrack.Size              = UDim2.new(1, -10, 0, 2)
+    progressTrack.Position          = UDim2.new(0, 5, 1, -3)
+    progressTrack.BackgroundColor3  = Color3.fromRGB(28, 28, 44)
+    progressTrack.BorderSizePixel   = 0
+    progressTrack.ZIndex            = 31
+    Instance.new("UICorner", progressTrack).CornerRadius = UDim.new(0, 2)
+
+    local progressFill = Instance.new("Frame")
+    progressFill.Parent             = progressTrack
+    progressFill.Size               = UDim2.new(1, 0, 1, 0)
+    progressFill.BackgroundColor3   = c.accent
+    progressFill.BorderSizePixel    = 0
+    progressFill.ZIndex             = 32
+    Instance.new("UICorner", progressFill).CornerRadius = UDim.new(0, 2)
+
+    -- ── Register & restack ──
+    local data = { card = card }
+    table.insert(notifications, 1, data)
+    repositionAll()
+
+    -- ── Animate in (slide down from top + fade) ──
+    tw(card,   { BackgroundTransparency = 0 }, 0.25)
+    tw(stroke, { Transparency = 0.5 },         0.25)
+    tw(card,   { Position = onscreenPos },     0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+    -- ── Progress drain ──
+    tw(progressFill, { Size = UDim2.new(0, 0, 1, 0) }, duration, Enum.EasingStyle.Linear)
+
+    -- ── Dismiss ──
+    task.delay(duration, function()
+        -- slide back up + fade
+        tw(card,   { Position = offscreenPos },          0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+        tw(card,   { BackgroundTransparency = 1 },       0.28)
+        tw(stroke, { Transparency = 1 },                 0.28)
+        task.wait(0.32)
+
+        for i, d in ipairs(notifications) do
+            if d == data then
+                table.remove(notifications, i)
+                break
+            end
+        end
+        card:Destroy()
+        repositionAll()
+    end)
+end
+
+-- ── usage ──────────────────────────────────────────────
+if success and DMZ then
+    notifydmz("DMZ HUB V5 LOADED", "success", 3)
+else
+    warn("Gagal load DMZ")
+    notifydmz("Gagal memuat DMZ Hub", "error", 4)
+end
+
+-- Window
+local win = DMZ:CreateWindow("DMZ HUB V5")
+
+--======================================
+-- EVADE TAB
+--======================================
+local evadeTab = win:AddTab("Evade")
+
+-- Variabel global toggle
+local autoCheckEnabled = false
+
+--=======================
+-- Auto Jump
+--=======================
+
+local holdingJump = false
+local bhopcon
+
+evadeTab:AddToggle("BHOP (Hold Space in PC)", function(state)
+    if state then
+        notifydmz("Bhop Turn On", "success")
+        bhopcon = RunService.Stepped:Connect(function()
+            local character = LocalPlayer.Character
+            if character and character:FindFirstChild("Humanoid") then
+                local humanoid = character.Humanoid
+                local root = character:FindFirstChild("HumanoidRootPart")
+                if holdingJump and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping and humanoid:GetState() ~= Enum.HumanoidStateType.Freefall then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end)
+    else
+        if bhopcon then
+            bhopcon:Disconnect()
+            bhopcon = nil
+        end
+    end
+end)
+
+-- Detect Space hold
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.Space and not gameProcessed then
+        holdingJump = true
+    end
+end)
+
+UIS.InputEnded:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.Space then
+        holdingJump = false
+    end
+end)
+
+--=======================
+-- SWITCH 40 FPS
+--=======================
+--=======================
+-- SERVICES
+--=======================
+local UIS = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+
+--=======================
+-- SETTINGS FILE
+--=======================
+local SETTINGS_FILE = "settingsdmzhubv4.json"
+
+local Settings = {
+    Enabled = false,
+    Keybind = "T",
+    DefaultFPS = 240,
+    EZBCFPS = 40
+}
+
+--=======================
+-- LOAD SETTINGS
+--=======================
+if isfile(SETTINGS_FILE) then
+    local ok, data = pcall(function()
+        return HttpService:JSONDecode(readfile(SETTINGS_FILE))
+    end)
+    if ok and type(data) == "table" then
+        for k, v in pairs(data) do
+            Settings[k] = v
+        end
+    end
+end
+
+local function SaveSettings()
+    writefile(SETTINGS_FILE, HttpService:JSONEncode(Settings))
+end
+
+--=======================
+-- VARIABLES
+--=======================
+local enabled = Settings.Enabled
+local fpsToggle = false
+local keybind = Enum.KeyCode[Settings.Keybind] or Enum.KeyCode.T
+local waitingForKey = false
+
+--=======================
+-- FPS TOGGLE
+--=======================
+evadeTab:AddToggle("EZ BC 40FPS", function(state)
+    enabled = state
+    Settings.Enabled = state
+
+    if not enabled then
+        setfpscap(Settings.DefaultFPS)
+        fpsToggle = false
+        notifydmz("FPS dikembalikan ke default", "error")
+    else
+        notifydmz("EZ BC 40FPS diaktifkan", "success")
+    end
+
+    SaveSettings()
+end)
+
+--=======================
+-- CHANGE KEYBIND BUTTON
+--=======================
+
+--=======================
+-- INPUT LISTENER
+--=======================
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+
+    -- MODE SET KEYBIND
+    if waitingForKey then
+        waitingForKey = false
+        keybind = input.KeyCode
+        Settings.Keybind = keybind.Name
+        SaveSettings()
+        notifydmz("Keybind FPS diset ke "..keybind.Name, "success")
+        return
+    end
+
+    -- 🔥 HARD CHECK enabled
+    if not enabled then return end
+
+    -- FPS SWITCH
+    if input.KeyCode == keybind then
+        fpsToggle = not fpsToggle
+
+        if fpsToggle then
+            setfpscap(Settings.EZBCFPS)
+            notifydmz("FPS diset ke 40", "success")
+        else
+            setfpscap(Settings.DefaultFPS)
+            notifydmz("FPS kembali ke default", "success")
+        end
+    end
+end)
+
+--=======================
+-- APPLY DEFAULT FPS
+--=======================
+setfpscap(Settings.DefaultFPS)
+
+
+--=======================
+-- AUTO PASANG TELEPORT FULL
+--=======================
+
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local player = game.Players.LocalPlayer
+
+--=======================
+-- SETTINGS MANAGEMENT
+--=======================
+_G.Settings = _G.Settings or {}
+_G.Settings.TeleportPositions = _G.Settings.TeleportPositions or {}
+
+-- Load settings dari file (kalau ada)
+if isfile and isfile("teleport_settings.json") then
+	local success, data = pcall(function()
+		return HttpService:JSONDecode(readfile("teleport_settings.json"))
+	end)
+	if success and data then
+		_G.Settings = data
+		print("[AutoTP] Settings loaded dari file.")
+	end
+end
+
+-- Fungsi simpan settings
+local function saveSettings()
+	if writefile then
+		writefile("teleport_settings.json", HttpService:JSONEncode(_G.Settings))
+		print("[AutoTP] Settings saved.")
+	end
+end
+
+--=======================
+-- INPUT TELEPORT MAP UI
+--=======================
+local function showTeleportInputUI()
+	local mapFolder = workspace:WaitForChild("Game"):WaitForChild("Map")
+	local mapName = mapFolder:GetAttribute("MapName")
+	local PlayerGui = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "TeleportInputUI"
+	screenGui.ResetOnSpawn = false
+	screenGui.Parent = PlayerGui
+
+	-- === MAIN FRAME ===
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0, 330, 0, 232)
+	frame.Position = UDim2.new(0.8, -165, 0.5, -116)
+	frame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+	frame.BorderSizePixel = 0
+	frame.ZIndex = 1
+	frame.Parent = screenGui
+
+	local frameCorner = Instance.new("UICorner")
+	frameCorner.CornerRadius = UDim.new(0, 12)
+	frameCorner.Parent = frame
+
+	-- Accent border stroke
+	local frameStroke = Instance.new("UIStroke")
+	frameStroke.Color = Color3.fromRGB(70, 130, 255)
+	frameStroke.Thickness = 1.2
+	frameStroke.Transparency = 0.4
+	frameStroke.Parent = frame
+
+	-- === HEADER BAR ===
+	local header = Instance.new("Frame")
+	header.Size = UDim2.new(1, 0, 0, 40)
+	header.Position = UDim2.new(0, 0, 0, 0)
+	header.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+	header.BorderSizePixel = 0
+	header.ZIndex = 2
+	header.Parent = frame
+
+	local headerCorner = Instance.new("UICorner")
+	headerCorner.CornerRadius = UDim.new(0, 12)
+	headerCorner.Parent = header
+
+	-- Cover bottom rounded corners of header
+	local headerFix = Instance.new("Frame")
+	headerFix.Size = UDim2.new(1, 0, 0, 12)
+	headerFix.Position = UDim2.new(0, 0, 1, -12)
+	headerFix.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+	headerFix.BorderSizePixel = 0
+	headerFix.ZIndex = 2
+	headerFix.Parent = header
+
+	-- Blue accent line below header
+	local accentLine = Instance.new("Frame")
+	accentLine.Size = UDim2.new(1, 0, 0, 1)
+	accentLine.Position = UDim2.new(0, 0, 0, 40)
+	accentLine.BackgroundColor3 = Color3.fromRGB(70, 130, 255)
+	accentLine.BackgroundTransparency = 0.6
+	accentLine.BorderSizePixel = 0
+	accentLine.ZIndex = 2
+	accentLine.Parent = frame
+
+	-- Icon dot
+	local iconDot = Instance.new("Frame")
+	iconDot.Size = UDim2.new(0, 8, 0, 8)
+	iconDot.Position = UDim2.new(0, 14, 0, 16)
+	iconDot.BackgroundColor3 = Color3.fromRGB(70, 130, 255)
+	iconDot.BorderSizePixel = 0
+	iconDot.ZIndex = 3
+	iconDot.Parent = frame
+
+	local dotCorner = Instance.new("UICorner")
+	dotCorner.CornerRadius = UDim.new(1, 0)
+	dotCorner.Parent = iconDot
+
+	-- === TITLE ===
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, -80, 0, 40)
+	title.Position = UDim2.new(0, 30, 0, 0)
+	title.BackgroundTransparency = 1
+	title.Text = "TAMBAH TELEPORT MAP"
+	title.TextColor3 = Color3.fromRGB(220, 230, 255)
+	title.TextSize = 12
+	title.Font = Enum.Font.GothamBold
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.ZIndex = 3
+	title.Parent = frame
+
+	-- === CLOSE BUTTON ===
+	local closeButton = Instance.new("TextButton")
+	closeButton.Size = UDim2.new(0, 26, 0, 26)
+	closeButton.Position = UDim2.new(1, -36, 0, 7)
+	closeButton.BackgroundColor3 = Color3.fromRGB(60, 30, 40)
+	closeButton.Text = "X"
+	closeButton.TextColor3 = Color3.fromRGB(255, 100, 120)
+	closeButton.TextSize = 12
+	closeButton.Font = Enum.Font.GothamBold
+	closeButton.BorderSizePixel = 0
+	closeButton.ZIndex = 4
+	closeButton.Parent = frame
+
+	local closeCorner = Instance.new("UICorner")
+	closeCorner.CornerRadius = UDim.new(0, 6)
+	closeCorner.Parent = closeButton
+
+	local closeStroke = Instance.new("UIStroke")
+	closeStroke.Color = Color3.fromRGB(255, 80, 100)
+	closeStroke.Thickness = 1
+	closeStroke.Transparency = 0.5
+	closeStroke.Parent = closeButton
+
+	-- === NAME INPUT ===
+	local nameBox = Instance.new("TextBox")
+	nameBox.PlaceholderText = "Masukkan nama map..."
+	nameBox.Text = ""
+	nameBox.Size = UDim2.new(1, -24, 0, 32)
+	nameBox.Position = UDim2.new(0, 12, 0, 50)
+	nameBox.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+	nameBox.TextColor3 = Color3.fromRGB(200, 215, 255)
+	nameBox.PlaceholderColor3 = Color3.fromRGB(90, 95, 130)
+	nameBox.TextSize = 13
+	nameBox.Font = Enum.Font.Gotham
+	nameBox.ClearTextOnFocus = false
+	nameBox.BorderSizePixel = 0
+	nameBox.ZIndex = 2
+	nameBox.Parent = frame
+
+	local nameBoxCorner = Instance.new("UICorner")
+	nameBoxCorner.CornerRadius = UDim.new(0, 7)
+	nameBoxCorner.Parent = nameBox
+
+	local nameBoxStroke = Instance.new("UIStroke")
+	nameBoxStroke.Color = Color3.fromRGB(70, 80, 130)
+	nameBoxStroke.Thickness = 1
+	nameBoxStroke.Transparency = 0.3
+	nameBoxStroke.Parent = nameBox
+
+	local namePadding = Instance.new("UIPadding")
+	namePadding.PaddingLeft = UDim.new(0, 10)
+	namePadding.Parent = nameBox
+
+	-- === BUTTON HELPER FUNCTION ===
+	local function makeButton(text, posY, bgColor, textColor, strokeColor)
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1, -24, 0, 30)
+		btn.Position = UDim2.new(0, 12, 0, posY)
+		btn.BackgroundColor3 = bgColor
+		btn.Text = text
+		btn.TextColor3 = textColor
+		btn.TextSize = 12
+		btn.Font = Enum.Font.GothamSemibold
+		btn.BorderSizePixel = 0
+		btn.ZIndex = 2
+		btn.Parent = frame
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 7)
+		corner.Parent = btn
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = strokeColor
+		stroke.Thickness = 1
+		stroke.Transparency = 0.4
+		stroke.Parent = btn
+
+		return btn
+	end
+
+	-- === BUTTONS ===
+	local usePlayerButton = makeButton(
+		"⊕  Gunakan Posisi Player",
+		91,
+		Color3.fromRGB(22, 40, 80),
+		Color3.fromRGB(120, 170, 255),
+		Color3.fromRGB(70, 130, 255)
+	)
+
+	local useThisMapButton = makeButton(
+		"◈  Use This Map",
+		130,
+		Color3.fromRGB(40, 28, 14),
+		Color3.fromRGB(255, 185, 80),
+		Color3.fromRGB(200, 140, 40)
+	)
+
+	local confirmButton = makeButton(
+		"✓  Konfirmasi",
+		169,
+		Color3.fromRGB(14, 45, 28),
+		Color3.fromRGB(80, 220, 140),
+		Color3.fromRGB(40, 180, 100)
+	)
+
+	-- === LOGIC (unchanged) ===
+	local selectedPosition = nil
+
+	usePlayerButton.MouseButton1Click:Connect(function()
+		local char = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
+		local hrp = char:WaitForChild("HumanoidRootPart")
+
+		local rayParams = RaycastParams.new()
+		rayParams.FilterDescendantsInstances = {char}
+		rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+		local rayResult = workspace:Raycast(hrp.Position, Vector3.new(0, -200, 0), rayParams)
+
+		if rayResult then
+			selectedPosition = rayResult.Position
+			usePlayerButton.Text = string.format("⊕  (%.1f, %.1f, %.1f)", selectedPosition.X, selectedPosition.Y, selectedPosition.Z)
+		else
+			selectedPosition = hrp.Position
+			usePlayerButton.Text = string.format("⊕  No ground (%.1f, %.1f, %.1f)", selectedPosition.X, selectedPosition.Y, selectedPosition.Z)
+		end
+	end)
+
+	useThisMapButton.MouseButton1Click:Connect(function()
+		if mapName then
+			nameBox.Text = mapName
+			local char = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
+			local hrp = char:WaitForChild("HumanoidRootPart")
+			selectedPosition = hrp.Position
+			usePlayerButton.Text = string.format("⊕  Auto (%.1f, %.1f, %.1f)", selectedPosition.X, selectedPosition.Y, selectedPosition.Z)
+		end
+	end)
+
+	confirmButton.MouseButton1Click:Connect(function()
+		local mapName = nameBox.Text
+		if mapName == "" or not selectedPosition then
+			warn("[AutoTP] Nama map kosong atau posisi belum dipilih.")
+			return
+		end
+
+		_G.Settings.TeleportPositions[mapName] = {
+			X = selectedPosition.X,
+			Y = selectedPosition.Y,
+			Z = selectedPosition.Z
+		}
+
+		saveSettings()
+		screenGui:Destroy()
+		notifydmz("Teleport Map '"..mapName.."' berhasil ditambahkan!", "success")
+	end)
+
+	closeButton.MouseButton1Click:Connect(function()
+		screenGui:Destroy()
+		notifydmz("Input Teleport Map dibatalkan", "error")
+	end)
+
+	-- === DRAG LOGIC (unchanged) ===
+	local UIS = game:GetService("UserInputService")
+	local dragging = false
+	local dragInput
+	local dragStart
+	local startPos
+
+	local function update(input)
+		local delta = input.Position - dragStart
+		frame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+		shadow.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X - 3,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y + 3
+		)
+	end
+
+	frame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			startPos = frame.Position
+
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	frame.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement then
+			dragInput = input
+		end
+	end)
+
+	UIS.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			update(input)
+		end
+	end)
+end
+
+--=======================
+-- TOMBOL TAMBAH MAP
+--=======================
+evadeTab:AddButton("Input Teleport Map", function()
+    if showTeleportInputUI then
+        showTeleportInputUI()
+    else
+        notifydmz("Input Teleport Map dibatalkan", "error")
+    end
+end)
+
+--=======================
+-- AUTO PASANG TP SYSTEM
+--=======================
+evadeTab:AddToggle("Auto Pasang TP", function(state)
+	local mapFolder = workspace:WaitForChild("Game"):WaitForChild("Map")
+	local mapName = mapFolder:GetAttribute("MapName")
+
+	local tpPositions = {
+		Library = Vector3.new(-199.8, -205.6, 898.5),
+		Mayday = Vector3.new(-1091.9, 384.5, 47.5),
+		ScorchingOutpost = Vector3.new(-529.3, 5.8, 303.4),
+		IndoorWaterPark = Vector3.new(619.8, 196.7, 702.8),
+		DesertBus = Vector3.new(1368.82, -66.27, 936.46),
+		Alleyways = Vector3.new(92.69, 170.5, 374.07),
+		Poolrooms = Vector3.new(38.07, 115.8, -1756.19),
+		Funrooms = Vector3.new(64.57, -213.21, 809.24),
+		Sewers = Vector3.new(-10.78, 21.24, -496.84),
+		Mictlan = Vector3.new(-173, 460.6, -35)
+	}
+
+	for k, v in pairs(_G.Settings.TeleportPositions or {}) do
+		if typeof(v) == "Vector3" then
+			tpPositions[k] = v
+		elseif typeof(v) == "table" then
+			tpPositions[k] = Vector3.new(v.X, v.Y, v.Z)
+		end
+	end
+
+	if state then
+		notifydmz("Auto TP aktif! Tekan [V] untuk pasang teleporter!", "success")
+
+		_G.AutoTPConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+			if gameProcessed then return end
+			if input.KeyCode == Enum.KeyCode.V then
+				local tpPos = tpPositions[mapName]
+				if not tpPos then
+					notifydmz("Map '" .. tostring(mapName) .. "' belum terdaftar.", "error")
+					return
+				end
+
+				-- 🔥 Raycast dari atas
+				local raycastParams = RaycastParams.new()
+				raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+				raycastParams.FilterDescendantsInstances = {}
+
+				local rayResult = workspace:Raycast(
+					tpPos + Vector3.new(0, 50, 0),
+					Vector3.new(0, -1000, 0),
+					raycastParams
+				)
+
+				if rayResult then
+					local hitPart = rayResult.Instance
+					local hitPos = rayResult.Position
+
+					print(string.format(
+						"AutoTP: Hit %s | Pos: (%.2f, %.2f, %.2f)",
+						hitPart.Name, hitPos.X, hitPos.Y, hitPos.Z
+					))
+
+					local teleportCFrame = CFrame.new(hitPos)
+
+					game:GetService("ReplicatedStorage")
+						:WaitForChild("Events")
+						:WaitForChild("Character")
+						:WaitForChild("ToolAction")
+						:FireServer(1, {"Teleporter", teleportCFrame})
+
+					notifydmz("Teleporter nempel tanah ✔", "success")
+				else
+					notifydmz("Tidak ada tanah di bawah posisi TP!", "error")
+				end
+			end
+		end)
+	else
+		if _G.AutoTPConnection then
+			_G.AutoTPConnection:Disconnect()
+			_G.AutoTPConnection = nil
+		end
+		notifydmz("Auto Pasang TP dimatikan", "error")
+	end
+end)
+
+--=======================
+-- Lag Switch
+--=======================
+
+local LagSwitchEnable = false
+
+
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if LagSwitchEnable and input.KeyCode == Enum.KeyCode.E and setfpscap then
+        local df = 9999 -- FPS cap tinggi untuk lag
+        setfpscap(df)
+        local s = os.clock()
+        while os.clock() - s < 0.5 do end
+        setfpscap(df)
+    end
+end)
+
+evadeTab:AddToggle("LagSwitch", function(state)
+    LagSwitchEnable = state
+end)
+
+evadeTab:AddButton("LagSwitch Auto", function(state)
+    local url = "https://raw.githubusercontent.com/DRE4MZX/RBLX_GUI/main/lagswitchauto"
+    local success, scriptData = pcall(function()
+        return game:HttpGet(url)
+    end)
+
+    if success and scriptData then
+        loadstring(scriptData)()
+    else
+        warn("❌ Gagal load FPS BOOST script")
+    end
+end)
+
+--=======================
+-- TOMBOL Teleport Player
+--=======================
+
+local locations = {
+    {Name = "Garden Atas", CFrame = CFrame.new(-332.85, 359.31, -911.25)},
+    {Name = "Mayday Bawah", CFrame = CFrame.new(-989.069, 387.033, 722.368)},
+    {Name = "Mayday Atas", CFrame = CFrame.new(-1143.521, 1018.102, 680.210)},
+    {Name = "Fun Room Kandang", CFrame = CFrame.new(-116.610, -180.911, 502.633)},
+    {Name = "Fun Room Bawah", CFrame = CFrame.new(49.255, -233.224, 1133.953)},
+    {Name = "Work Facility", CFrame = CFrame.new(-25.619, -201.183, 1046.523)},
+    {Name = "Alleyways 1", CFrame = CFrame.new(80.466, 172.950, 421.918)},
+    {Name = "Alleyways 2", CFrame = CFrame.new(36.83, 156.95, -254.84)},
+    {Name = "Scorching Outpost", CFrame = CFrame.new(15.289, 8.258, -276.671)},
+    {Name = "PoolRooms", CFrame = CFrame.new(57.268, 118.249, -1748.123)},
+    {Name = "Abstract", CFrame = CFrame.new(602.808, -122.225, -41.759)},
+    {Name = "Tunnel", CFrame = CFrame.new(554.66, 96.36, -923.73)},
+    {Name = "Loop", CFrame = CFrame.new(141.43, -374.45, 76.69)},
+    {Name = "Sewer", CFrame = CFrame.new(-10.28, 23.69, -496.66)},
+    {Name = "Maze", CFrame = CFrame.new(94.364, -118.749, 207.405)}
+}
+
+local function createTeleportGUI()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "TeleportGUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.IgnoreGuiInset = true
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    -- Main Frame
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Size = UDim2.new(0, 300, 0, 400)
+    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28) -- dark black
+    mainFrame.Active = true
+    mainFrame.Parent = screenGui
+
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(0, 12)
+    uiCorner.Parent = mainFrame
+
+    -- Shadow (UIStroke)
+    local shadow = Instance.new("UIStroke")
+    shadow.Color = Color3.fromRGB(60, 60, 60)
+    shadow.Thickness = 2
+    shadow.Parent = mainFrame
+
+    -- Title bar
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 30)
+    titleBar.BackgroundColor3 = Color3.fromRGB(44, 44, 44) -- gray
+    titleBar.Active = true
+    titleBar.Parent = mainFrame
+
+    local titleCorner = Instance.new("UICorner")
+    titleCorner.CornerRadius = UDim.new(0, 8) -- adjust 8 for roundness
+    titleCorner.Parent = titleBar
+
+    local titleText = Instance.new("TextLabel")
+    titleText.Size = UDim2.new(1, -60, 1, 0)
+    titleText.Position = UDim2.new(0, 10, 0, 0)
+    titleText.BackgroundTransparency = 1
+    titleText.Text = "Teleport Menu"
+    titleText.TextColor3 = Color3.fromRGB(255, 255, 255) -- white
+    titleText.TextSize = 16
+    titleText.Font = Enum.Font.GothamBold
+    titleText.TextXAlignment = Enum.TextXAlignment.Left
+    titleText.Parent = titleBar
+
+    -- Minimize button
+    local minimizeButton = Instance.new("TextButton")
+    minimizeButton.Size = UDim2.new(0, 30, 1, 0)
+    minimizeButton.Position = UDim2.new(1, -40, 0, 0)
+    minimizeButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80) -- optional, overridden by transparency
+    minimizeButton.BackgroundTransparency = 1 
+    minimizeButton.Text = "_"
+    minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    minimizeButton.Font = Enum.Font.GothamBold
+    minimizeButton.TextSize = 18
+    minimizeButton.Parent = titleBar
+
+    -- ScrollFrame for locations
+    local scrollFrame = Instance.new("ScrollingFrame")
+    scrollFrame.Size = UDim2.new(1, -20, 1, -50)
+    scrollFrame.Position = UDim2.new(0, 10, 0, 40)
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scrollFrame.ScrollBarThickness = 6
+    scrollFrame.BackgroundTransparency = 1
+    scrollFrame.Parent = mainFrame
+
+    local uiListLayout = Instance.new("UIListLayout")
+    uiListLayout.Padding = UDim.new(0, 5)
+    uiListLayout.Parent = scrollFrame
+
+    -- Teleport function
+    local function teleportTo(cframe)
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local hrp = char:WaitForChild("HumanoidRootPart")
+        hrp.CFrame = cframe
+    end
+
+    -- Create buttons for each location
+    for _, loc in ipairs(locations) do
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, -10, 0, 40)
+        btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.Gotham
+        btn.TextSize = 16
+        btn.Text = loc.Name
+        btn.Parent = scrollFrame
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 6)
+        corner.Parent = btn
+
+        btn.MouseEnter:Connect(function()
+            btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        end)
+        btn.MouseLeave:Connect(function()
+            btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        end)
+
+        btn.MouseButton1Click:Connect(function()
+            teleportTo(loc.CFrame)
+        end)
+    end
+
+
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, uiListLayout.AbsoluteContentSize.Y)
+
+    -- Close & Minimize
+    local minimized = false
+    minimizeButton.MouseButton1Click:Connect(function()
+        minimized = not minimized
+        if minimized then
+            scrollFrame.Visible = false
+            mainFrame.Size = UDim2.new(0, 300, 0, 40)
+        else
+            scrollFrame.Visible = true
+            mainFrame.Size = UDim2.new(0, 300, 0, 400)
+        end
+    end)
+
+    -- Dragging
+    local dragging = false
+    local dragStart, startPos
+
+    titleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = mainFrame.Position
+        end
+    end)
+
+    titleBar.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            mainFrame.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+    return screenGui
+end
+
+local teleportUI
+evadeTab:AddToggle("Teleport Menu", function(state)
+    if state then
+        if not teleportUI or not teleportUI.Parent then
+            teleportUI = createTeleportGUI()
+        end
+    else
+        if teleportUI and teleportUI.Parent then
+            teleportUI:Destroy()
+            teleportUI = nil
+        end
+    end
+end)
+
+--=======================
+-- Show Barriers & InvisParts
+--=======================
+local Workspace = game:GetService("Workspace")
+
+local barrierLoop = nil
+local barrierEnabled = false
+
+evadeTab:AddToggle("Show Barriers & InvisParts", function(state)
+	barrierEnabled = state
+	if state then
+		print("[Barrier] ON")
+
+		if barrierLoop then
+			task.cancel(barrierLoop) -- hentikan loop sebelumnya kalau ada
+		end
+
+		barrierLoop = task.spawn(function()
+			while barrierEnabled do
+				local success, err = pcall(function()
+					local gameFolder = Workspace:FindFirstChild("Game")
+					if not gameFolder then return end
+
+					local map = gameFolder:FindFirstChild("Map")
+					if not map then return end
+
+					local folder = map:FindFirstChild("InvisParts")
+					if not folder then return end
+
+					for _, obj in ipairs(folder:GetDescendants()) do
+						if obj:IsA("BasePart") then
+							obj.Material = Enum.Material.Asphalt
+							if obj.Transparency == 1 then
+								obj.Transparency = 0.5
+							end
+						end
+					end
+				end)
+
+				if not success then
+					warn("[Barrier] Error:", err)
+				end
+
+				task.wait(10)
+			end
+		end)
+	else
+		print("[Barrier] OFF")
+		barrierEnabled = false
+
+		-- reset part
+		task.spawn(function()
+			local gameFolder = Workspace:FindFirstChild("Game")
+			if not gameFolder then return end
+
+			local map = gameFolder:FindFirstChild("Map")
+			if not map then return end
+
+			local folder = map:FindFirstChild("InvisParts")
+			if not folder then return end
+
+			for _, obj in ipairs(folder:GetDescendants()) do
+				if obj:IsA("BasePart") then
+					obj.Material = Enum.Material.SmoothPlastic
+					obj.Transparency = 1
+				end
+			end
+		end)
+	end
+end)
+
+--=======================
+-- Full Brightness
+--=======================
+evadeTab:AddButton("Fullbright", function(state)
+    Lighting.Brightness = 2
+    Lighting.ClockTime = 14
+    Lighting.FogEnd = 100000
+    Lighting.GlobalShadows = false
+    Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+    Lighting.FogEnd = 100000
+    for i,v in pairs(Lighting:GetDescendants()) do
+        if v:IsA("Atmosphere") then
+            v:Destroy()
+        end
+    end
+end)
+
+--=======================
+-- Remove UI Rewards
+--=======================
+local mouseStats = LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("Camera"):WaitForChild("MouseEnableStats")
+
+evadeTab:AddToggle("Remove UI Rewards", function(state)
+    autoCheckEnabled = state
+    spawn(function()
+        while autoCheckEnabled and mouseStats.Parent do
+            local success, results = pcall(function()
+                return mouseStats:GetAttribute("Results")
+            end)
+
+            if success and results == true then
+                print("Results was true, now set to false")
+                
+                pcall(function() mouseStats:SetAttribute("Results", false) end)
+
+                local rewardsGui = LocalPlayer.PlayerGui:FindFirstChild("Global") 
+                                   and LocalPlayer.PlayerGui.Global:FindFirstChild("Rewards")
+                pcall(function()
+                    if rewardsGui then rewardsGui.Visible = false end
+                end)
+
+                wait(1)
+                pcall(function() mouseStats:SetAttribute("Results", false) end)
+            end
+
+            wait(1)
+        end
+    end)
+end)
+
+--======================================
+-- Free Timer 
+--======================================
+local function getTimer()
+    local stats = workspace:FindFirstChild("Game") and workspace.Game:FindFirstChild("Stats")
+    return stats and stats:GetAttribute("Timer") or 0
+end
+
+local function formatTime(seconds)
+    local mins = math.floor(seconds / 60)
+    local secs = seconds % 60
+    return string.format(" %02d : %02d ", mins, secs)
+end
+
+local function createTimerUI()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "TimerUI"
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    
+    -- Main Frame
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 140, 0, 60)
+    frame.Position = UDim2.new(0.5, -70, 0.1, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    frame.BorderSizePixel = 0
+    frame.Parent = screenGui
+    frame.Active = true
+    frame.Draggable = true
+    frame.ClipsDescendants = true
+
+    -- Rounded corners
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = frame
+
+    -- Shadow (optional)
+    local shadow = Instance.new("UIStroke")
+    shadow.Thickness = 2
+    shadow.Color = Color3.fromRGB(60, 60, 60)
+    shadow.Parent = frame
+
+    -- Timer Label
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.GothamBold
+    label.TextScaled = true
+    label.Text = " 00 : 00 "
+    label.Parent = frame
+
+    -- Update timer every frame
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
+        if screenGui.Parent then
+            label.Text = formatTime(getTimer())
+        else
+            if connection then connection:Disconnect() end
+        end
+    end)
+
+    return screenGui
+end
+
+local timerUI
+local timerVisible = false -- status toggle
+
+-- Fungsi untuk toggle UI
+local function toggleTimer()
+    timerVisible = not timerVisible
+    if timerVisible then
+        timerUI = createTimerUI()
+    else
+        if timerUI then
+            timerUI:Destroy()
+            timerUI = nil
+        end
+    end
+end
+
+evadeTab:AddButton("Revive sendiri", function(state)
+    game:GetService("ReplicatedStorage").Events.Player.ChangePlayerMode:FireServer(true)
+
+end)
+
+-- Toggle lewat GUI (evadeTab)
+evadeTab:AddToggle("Free Timer", function(state)
+    timerVisible = state
+    if state then
+        timerUI = createTimerUI()
+    else
+        if timerUI then
+            timerUI:Destroy()
+            timerUI = nil
+        end
+    end
+end)
+
+-- Toggle pakai tombol H
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.X then
+        toggleTimer()
+    end
+end)
+
+--======================================
+-- MAIN TAB
+--======================================
+
+local mainTab = win:AddTab("MAIN")
+
+--=======================
+-- Auto Effect Toggle Script
+--=======================
+
+mainTab:AddButton("Korblox Malivinus", function()
+	local player = game.Players.LocalPlayer
+
+    local TARGET_ID = "2794659901"
+    local NEW_MESH = 101851696
+    local NEW_TEXTURE = 101851254
+
+    local function handleMesh(obj)
+        if obj:IsA("CharacterMesh") then
+            if tostring(obj.MeshId):find(TARGET_ID) then
+                obj.MeshId = NEW_MESH
+                obj.OverlayTextureId = NEW_TEXTURE
+            end
+        end
+    end
+
+    local function setupCharacter(char)
+        for _,v in ipairs(char:GetChildren()) do
+            handleMesh(v)
+        end
+        
+        char.ChildAdded:Connect(handleMesh)
+    end
+
+    if player.Character then
+        setupCharacter(player.Character)
+    end
+
+    player.CharacterAdded:Connect(setupCharacter)
+end)
+
+mainTab:AddButton("INFINITE YIELD", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+end)
+
+local RS = game:GetService("ReplicatedStorage")
+local autoEffectConnection -- untuk CharacterAdded event
+local effectActive = false -- status toggle
+
+-- Fungsi hapus efek di Head
+local function removeEffects(char)
+	local head = char:FindFirstChild("Head")
+	if not head then return end
+
+	for _, obj in ipairs(head:GetChildren()) do
+		if obj:IsA("ParticleEmitter") or obj:IsA("Attachment") or obj:IsA("Part") then
+			if obj.Name == "left eye" or obj.Name == "right eye" or obj.Name == "Handle" or obj.Name:find("Toxic") or obj.Name == "void smoke" then
+				obj:Destroy()
+			end
+		end
+	end
+
+	print("[INFO] Semua efek dihapus dari Head.")
+end
+
+-- Fungsi pasang efek
+local function applyEffects(char)
+	task.wait(1)
+	local head = char:WaitForChild("Head", 5)
+	if not head then return end
+
+	-- Copy dari Angry BoboR6
+	local npcHead = RS:WaitForChild("NPCs"):WaitForChild("Angry BoboR6").Variants.Default.Head
+	local copyList = {"left eye", "right eye", "Handle", "void smoke"}
+
+	for _, name in ipairs(copyList) do
+		local obj = npcHead:FindFirstChild(name)
+		if obj then
+			local clone = obj:Clone()
+			clone.Parent = head
+		end
+	end
+
+	-- Copy ToxicInferno particle
+	local sourceAttachment = RS:WaitForChild("Items")
+		:WaitForChild("Cosmetics")
+		:WaitForChild("ToxicInferno")
+		:WaitForChild("CharacterClassic")
+		:WaitForChild("Torso")
+		:WaitForChild("Attachment")
+
+	for _, obj in ipairs(sourceAttachment:GetChildren()) do
+		if obj:IsA("ParticleEmitter") then
+			local clone = obj:Clone()
+			clone.Parent = head
+		end
+	end
+
+	-- Samakan warna dengan void smoke
+	local sourceEmitter = head:FindFirstChild("void smoke")
+	if sourceEmitter and sourceEmitter:IsA("ParticleEmitter") then
+		local sourceColor = sourceEmitter.Color
+		for _, obj in ipairs(head:GetChildren()) do
+			if obj:IsA("ParticleEmitter") and obj ~= sourceEmitter then
+				obj.Color = sourceColor
+			end
+		end
+	end
+
+	print("[INFO] Efek berhasil diterapkan ke Head.")
+end
+
+-- Toggle
+mainTab:AddToggle("Auto Effect", function(state)
+	effectActive = state
+
+	if state then
+		print("[DEBUG] Auto Effect: ON")
+		-- Jalankan efek langsung
+		if player.Character then
+			applyEffects(player.Character)
+		end
+
+		-- Apply otomatis setiap respawn
+		autoEffectConnection = player.CharacterAdded:Connect(function(char)
+			if effectActive then
+				applyEffects(char)
+			end
+		end)
+	else
+		print("[DEBUG] Auto Effect: OFF")
+		-- Hapus efek dari karakter sekarang
+		if player.Character then
+			removeEffects(player.Character)
+		end
+		-- Putus koneksi respawn listener
+		if autoEffectConnection then
+			autoEffectConnection:Disconnect()
+			autoEffectConnection = nil
+		end
+	end
+end)
+
+mainTab:AddButton("Remove SpecialRound Effect", function()
+    local stats = workspace:WaitForChild("Game"):WaitForChild("Stats")
+    
+    if stats:GetAttribute("SpecialRound") then
+        stats:SetAttribute("SpecialRound", nil)  -- atau "" tergantung tipe value
+        print("SpecialRound effect removed!")
+    else
+        print("No SpecialRound effect found.")
+    end
+end)
+
+-- God Mode Toggle
+-- mainTab:AddToggle("God Mode", function(state)
+--     print("God Mode:", state)
+--     -- implementasi actual GodMode bisa ditambah di sini
+-- end)
+
+local autoReviveEnabled = false
+local hasRevived = false
+
+local function startAutoRevive()
+    task.spawn(function()
+        while autoReviveEnabled do
+            local char = player.Character
+            if char then
+                local isDowned = char:GetAttribute("Downed")
+                if isDowned and not hasRevived then
+                    hasRevived = true
+                    local eventFolder = ReplicatedStorage:FindFirstChild("Events")
+                    if eventFolder and eventFolder:FindFirstChild("Player") then
+                        local changeMode = eventFolder.Player:FindFirstChild("ChangePlayerMode")
+                        if changeMode and changeMode:IsA("RemoteEvent") then
+                            changeMode:FireServer(true)
+                            print("[DMZHUB] Auto Revived.")
+                        end
+                    end
+                    task.delay(0.1, function()
+                        hasRevived = false
+                    end)
+                end
+            end
+            task.wait(0.1)
+        end
+    end)
+end
+
+--// 🧩 Toggle Integration
+mainTab:AddToggle("Auto Revive", function(state)
+    autoReviveEnabled = state
+    if state then
+        startAutoRevive()
+    else
+        hasRevived = false
+        print("[DMZHUB] Auto Revive Disabled.")
+    end
+end)
+
+
+-- Variabel status toggle
+-- Fungsi hilangin kaki kanan
+local function toggleRightLeg(state)
+    local player = game.Players.LocalPlayer
+    local conn = nil
+
+    local function apply(leg)
+        if not leg then return end
+        leg.Transparency = 1
+        return leg:GetPropertyChangedSignal("Transparency"):Connect(function()
+            if leg.Transparency < 1 then
+                leg.Transparency = 1
+            end
+        end)
+    end
+
+    local function lockLeg(char)
+        if conn then
+            conn:Disconnect()
+            conn = nil
+        end
+
+        local rightLeg = char:FindFirstChild("Right Leg")
+        if state and rightLeg then
+            conn = apply(rightLeg)
+        elseif not state and rightLeg then
+            rightLeg.Transparency = 0
+        end
+
+        char.DescendantAdded:Connect(function(d)
+            if d.Name == "Right Leg" and state then
+                if conn then conn:Disconnect() end
+                conn = apply(d)
+            end
+        end)
+    end
+
+    if player.Character then
+        lockLeg(player.Character)
+    end
+
+    player.CharacterAdded:Connect(function(char)
+        task.wait(0.1)
+        lockLeg(char)
+    end)
+end
+
+-- Integrasi ke UI toggle
+mainTab:AddToggle("Hilangin Kaki Kanan", function(state)
+    toggleRightLeg(state)
+end)
+
+mainTab:AddButton("FPS BOOST", function()
+    local url = "https://raw.githubusercontent.com/DRE4MZX/RBLX_GUI/main/fpsboost"
+    local success, scriptData = pcall(function()
+        return game:HttpGet(url)
+    end)
+
+    if success and scriptData then
+        loadstring(scriptData)()
+    else
+        warn("❌ Gagal load FPS BOOST script")
+    end
+end)
+
+mainTab:AddButton("Emote / Unusual Changer", function()
+    local Players = game:GetService("Players")
+    local CoreGui = game:GetService("CoreGui")
+    local UIS = game:GetService("UserInputService")
+    local TweenService = game:GetService("TweenService")
+    local emotesFolder = game:GetService("ReplicatedStorage").Items.Emotes
+    local LocalPlayer = Players.LocalPlayer
+    local gui = LocalPlayer:WaitForChild("PlayerGui")
+
+    local Shared = gui:FindFirstChild("Shared")
+
+    local selectedA, selectedB = nil, nil
+
+    -- ══════════════════════════════════════════
+    --  HELPERS
+    -- ══════════════════════════════════════════
+    local function make(class, props, parent)
+        local o = Instance.new(class)
+        if parent then o.Parent = parent end
+        for k, v in pairs(props or {}) do o[k] = v end
+        return o
+    end
+
+    local function corner(parent, r)
+        make("UICorner", { CornerRadius = UDim.new(0, r or 8) }, parent)
+    end
+
+    local function stroke(parent, color, thickness, trans)
+        make("UIStroke", {
+            Color = color or Color3.fromRGB(60, 60, 90),
+            Thickness = thickness or 1,
+            Transparency = trans or 0.4,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        }, parent)
+    end
+
+    local function tw(obj, props, t, style, dir)
+        TweenService:Create(obj,
+            TweenInfo.new(t or 0.2, style or Enum.EasingStyle.Quint, dir or Enum.EasingDirection.Out),
+            props
+        ):Play()
+    end
+
+    -- ══════════════════════════════════════════
+    --  PALETTE
+    -- ══════════════════════════════════════════
+    local C = {
+        BG       = Color3.fromRGB(11, 11, 18),
+        SURFACE  = Color3.fromRGB(18, 18, 28),
+        ELEVATED = Color3.fromRGB(22, 22, 36),
+        ITEM     = Color3.fromRGB(20, 20, 32),
+        BORDER   = Color3.fromRGB(48, 48, 72),
+        ACCENT   = Color3.fromRGB(108, 92, 231),
+        ACCENT2  = Color3.fromRGB(0, 210, 140),
+        TEXT     = Color3.fromRGB(225, 222, 245),
+        MUTED    = Color3.fromRGB(110, 108, 145),
+        DANGER   = Color3.fromRGB(230, 70, 70),
+    }
+
+
+    -- ══════════════════════════════════════════
+    --  STORE ORIGINAL NAMES
+    -- ══════════════════════════════════════════
+    local originalNames = {}
+    for _, emote in pairs(emotesFolder:GetChildren()) do
+        if emote:IsA("ModuleScript") then
+            originalNames[emote] = emote.Name
+        end
+    end
+    -- ══════════════════════════════════════════
+    --  LAST SWAP STORAGE (FIX)
+    -- ══════════════════════════════════════════
+    local lastSwap = {}
+
+    local function applyLastSwap()
+        for _, pair in pairs(lastSwap) do
+            local a = pair.a
+            local b = pair.b
+
+            if a and b and a.Parent and b.Parent then
+                local nameA = originalNames[a]
+                local nameB = originalNames[b]
+
+                local temp = "__TEMP__"
+                a.Name = temp
+                b.Name = nameA
+                a.Name = nameB
+            end
+        end
+    end
+
+    local function resetEmotes()
+        for emote, origName in pairs(originalNames) do
+            if emote.Parent then
+                emote.Name = origName
+            end
+        end
+    end
+
+    -- ══════════════════════════════════════════
+    --  BUILD UI
+    -- ══════════════════════════════════════════
+    local function buildEmoteSwapUI()
+        -- cleanup old
+        local old = CoreGui:FindFirstChild("EmoteSwapUI")
+        if old then old:Destroy() end
+
+        local gui = make("ScreenGui", {
+            Name = "EmoteSwapUI",
+            ZIndexBehavior = Enum.ZIndexBehavior.Global,
+            DisplayOrder = 999999,
+            ResetOnSpawn = false,
+        }, CoreGui)
+
+        -- ── Main Frame ────────────────────────────
+        local frame = make("Frame", {
+            Size = UDim2.new(0, 280, 0, 390),
+            Position = UDim2.new(0.5, -140, 0.5, -195),
+            BackgroundColor3 = C.BG,
+            BorderSizePixel = 0,
+            Active = true,
+            Draggable = true,
+            ClipsDescendants = true,
+        }, gui)
+        corner(frame, 12)
+        stroke(frame, C.ACCENT, 1.2, 0.55)
+
+        -- ── Title Bar ─────────────────────────────
+        local topBar = make("Frame", {
+            Size = UDim2.new(1, 0, 0, 38),
+            BackgroundColor3 = C.ELEVATED,
+            BorderSizePixel = 0,
+        }, frame)
+        corner(topBar, 12)
+        make("Frame", { Size = UDim2.new(1,0,0,12), Position = UDim2.new(0,0,1,-12), BackgroundColor3=C.ELEVATED, BorderSizePixel=0 }, topBar)
+        make("Frame", { Size = UDim2.new(1,0,0,1), Position = UDim2.new(0,0,1,0), BackgroundColor3=C.ACCENT, BackgroundTransparency=0.6, BorderSizePixel=0 }, topBar)
+        local pill = make("Frame", { Size=UDim2.new(0,3,0,16), Position=UDim2.new(0,12,0.5,-8), BackgroundColor3=C.ACCENT, BorderSizePixel=0 }, topBar)
+        corner(pill,3)
+        make("TextLabel", { Size=UDim2.new(1,-90,1,0), Position=UDim2.new(0,24,0,0), Text="EMOTE SWAP", Font=Enum.Font.GothamBold, TextSize=13, TextColor3=C.TEXT, BackgroundTransparency=1, TextXAlignment=Enum.TextXAlignment.Left }, topBar)
+
+        -- control buttons
+        local function ctrlBtn(xOff,label,bg,hoverBg,txtColor)
+            local btn = make("TextButton",{ Size=UDim2.new(0,24,0,24), Position=UDim2.new(1,xOff,0.5,-12), Text=label, Font=Enum.Font.GothamBold, TextSize=13, TextColor3=txtColor or C.TEXT, BackgroundColor3=bg, BorderSizePixel=0, AutoButtonColor=false }, topBar)
+            corner(btn,6)
+            btn.MouseEnter:Connect(function() tw(btn,{BackgroundColor3=hoverBg},0.12) end)
+            btn.MouseLeave:Connect(function() tw(btn,{BackgroundColor3=bg},0.12) end)
+            return btn
+        end
+        local closeBtn = ctrlBtn(-30,"×",Color3.fromRGB(42,18,22),C.DANGER,C.DANGER)
+        local minBtn   = ctrlBtn(-58,"−",C.ELEVATED,C.BORDER,C.MUTED)
+
+        -- ── Content ──────────────────────────────
+        local content = make("Frame", { Size=UDim2.new(1,0,1,-38), Position=UDim2.new(0,0,0,38), BackgroundTransparency=1 }, frame)
+        local function sectionLabel(text,yPos)
+            local row = make("Frame",{Size=UDim2.new(1,-20,0,18), Position=UDim2.new(0,10,0,yPos), BackgroundTransparency=1}, content)
+            local pillBar = make("Frame",{Size=UDim2.new(0,3,0,12), Position=UDim2.new(0,0,0.5,-6), BackgroundColor3=C.ACCENT, BorderSizePixel=0}, row)
+            corner(pillBar,2)
+            make("TextLabel",{Size=UDim2.new(1,-12,1,0), Position=UDim2.new(0,10,0,0), Text=text, Font=Enum.Font.GothamBold, TextSize=10, TextColor3=C.ACCENT, BackgroundTransparency=1, TextXAlignment=Enum.TextXAlignment.Left}, row)
+        end
+
+        -- ── Dropdown builder ──────────────────────
+        local function createDropdown(yPos,labelText,setSelected)
+            sectionLabel(labelText,yPos)
+            local searchBox = make("TextBox",{ Size=UDim2.new(1,-20,0,30), Position=UDim2.new(0,10,0,yPos+22), PlaceholderText="Search emote...", PlaceholderColor3=C.MUTED, Text="", Font=Enum.Font.Gotham, TextSize=12, TextColor3=C.TEXT, BackgroundColor3=C.ELEVATED, BorderSizePixel=0, ClearTextOnFocus=false }, content)
+            corner(searchBox,7)
+            stroke(searchBox,C.BORDER,1,0.3)
+            make("UIPadding",{PaddingLeft=UDim.new(0,10)},searchBox)
+
+            local list = make("ScrollingFrame",{ Size=UDim2.new(1,-20,0,100), Position=UDim2.new(0,10,0,yPos+57), CanvasSize=UDim2.new(0,0,0,0), BackgroundColor3=C.SURFACE, BorderSizePixel=0, ScrollBarThickness=3, ScrollBarImageColor3=C.ACCENT }, content)
+            corner(list,8)
+            stroke(list,C.BORDER,1,0.45)
+            local layout = make("UIListLayout",{SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,2)},list)
+            make("UIPadding",{PaddingLeft=UDim.new(0,4), PaddingRight=UDim.new(0,4), PaddingTop=UDim.new(0,4)},list)
+
+            local buttons = {}
+            local activeBtn = nil
+
+            local function refresh()
+                for _,v in pairs(buttons) do v:Destroy() end
+                buttons = {}
+                activeBtn = nil
+                for _,emote in pairs(emotesFolder:GetChildren()) do
+                    if emote:IsA("ModuleScript") then
+                        local query = string.lower(searchBox.Text)
+                        if query == "" or string.find(string.lower(emote.Name),query) then
+                            local btn = make("TextButton",{ Size=UDim2.new(1,0,0,28), Text="", BackgroundColor3=C.ITEM, BorderSizePixel=0, AutoButtonColor=false }, list)
+                            corner(btn,6)
+                            make("TextLabel",{ Size=UDim2.new(1,-12,1,0), Position=UDim2.new(0,10,0,0), Text=emote.Name, Font=Enum.Font.Gotham, TextSize=12, TextColor3=C.TEXT, BackgroundTransparency=1, TextXAlignment=Enum.TextXAlignment.Left }, btn)
+                            local check = make("TextLabel",{ Size=UDim2.new(0,20,1,0), Position=UDim2.new(1,-22,0,0), Text="✓", Font=Enum.Font.GothamBold, TextSize=11, TextColor3=C.ACCENT2, BackgroundTransparency=1, TextXAlignment=Enum.TextXAlignment.Center, Visible=false }, btn)
+                            btn.MouseEnter:Connect(function() tw(btn,{BackgroundColor3=Color3.fromRGB(26,24,44)},0.1) end)
+                            btn.MouseLeave:Connect(function() if activeBtn ~= btn then tw(btn,{BackgroundColor3=C.ITEM},0.1) end end)
+                            btn.MouseButton1Click:Connect(function()
+                                if activeBtn and activeBtn ~= btn then
+                                    tw(activeBtn,{BackgroundColor3=C.ITEM},0.1)
+                                    for _,c2 in ipairs(activeBtn:GetChildren()) do if c2:IsA("TextLabel") and c2.Text=="✓" then c2.Visible=false end end
+                                end
+                                activeBtn = btn
+                                tw(btn,{BackgroundColor3=Color3.fromRGB(22,18,48)},0.1)
+                                check.Visible = true
+                                setSelected(emote.Name)
+                            end)
+                            table.insert(buttons,btn)
+                        end
+                    end
+                end
+                task.wait()
+                list.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y+8)
+            end
+
+            searchBox:GetPropertyChangedSignal("Text"):Connect(refresh)
+            refresh()
+            return searchBox, list
+        end
+
+        createDropdown(5,   "SLOT EMOTE",   function(v) selectedA = v end)
+        createDropdown(170, "TARGET EMOTE", function(v) selectedB = v end)
+
+        -- ── Swap Button ─────────────────────────
+        local swapBtn = make("TextButton",{ Size=UDim2.new(1,-20,0,34), Position=UDim2.new(0,10,1,-44), Text="", BackgroundColor3=Color3.fromRGB(20,16,46), BorderSizePixel=0, AutoButtonColor=false }, content)
+        corner(swapBtn,8)
+        stroke(swapBtn,C.ACCENT,1.2,0.4)
+        local swapStripe = make("Frame",{ Size=UDim2.new(0,3,0,16), Position=UDim2.new(0,10,0.5,-8), BackgroundColor3=C.ACCENT, BorderSizePixel=0 }, swapBtn)
+        corner(swapStripe,2)
+        make("TextLabel",{ Size=UDim2.new(1,-28,1,0), Position=UDim2.new(0,22,0,0), Text="⇄  SWAP EMOTES", Font=Enum.Font.GothamBold, TextSize=12, TextColor3=C.TEXT, BackgroundTransparency=1, TextXAlignment=Enum.TextXAlignment.Center }, swapBtn)
+
+        swapBtn.MouseEnter:Connect(function() tw(swapBtn,{BackgroundColor3=Color3.fromRGB(28,22,60)},0.12) end)
+        swapBtn.MouseLeave:Connect(function() tw(swapBtn,{BackgroundColor3=Color3.fromRGB(20,16,46)},0.12) end)
+
+        swapBtn.MouseButton1Click:Connect(function()
+            if not selectedA or not selectedB or selectedA==selectedB then return end
+
+            local a = emotesFolder:FindFirstChild(selectedA)
+            local b = emotesFolder:FindFirstChild(selectedB)
+
+            if a and b then
+                -- local temp = "__TEMP__"
+
+                -- a.Name = temp
+                -- b.Name = selectedA
+                -- a.Name = selectedB
+
+                -- simpan OBJECT (FIX BUG)
+                lastSwap = {
+                    {a = a, b = b}
+                }
+
+                notifydmz("Emotes : "..selectedA.." ⇄ "..selectedB, "success")
+            end
+        end)
+
+        -- ── Minimize ────────────────────────────
+        local minimized = false
+        minBtn.MouseButton1Click:Connect(function()
+            minimized = not minimized
+            content.Visible = not minimized
+            tw(frame,{ Size = minimized and UDim2.new(0,280,0,38) or UDim2.new(0,280,0,390) },0.25)
+        end)
+
+        -- ── Close ───────────────────────────────
+        closeBtn.MouseButton1Click:Connect(function()
+            tw(frame,{ Size=UDim2.new(0,0,0,0), Position=UDim2.new(0.5,0,0.5,0) },0.25)
+            task.wait(0.26)
+            gui:Destroy()
+        end)
+
+        return gui
+    end
+
+    -- ══════════════════════════════════════════
+    --  TOGGLE + HOTKEY
+    -- ══════════════════════════════════════════
+    local HOTKEY = Enum.KeyCode.RightAlt
+    local isOpen = false
+    local currentGui = nil
+
+    local function toggleUI()
+        if isOpen then
+            if currentGui and currentGui.Parent then
+                local f = currentGui:FindFirstChildWhichIsA("Frame")
+                if f then
+                    tw(f,{ Size=UDim2.new(0,0,0,0), Position=UDim2.new(0.5,0,0.5,0) },0.22)
+                end
+                task.wait(0.24)
+                currentGui:Destroy()
+                currentGui = nil
+            end
+            isOpen = false
+        else
+            currentGui = buildEmoteSwapUI()
+            isOpen = true
+        end
+    end
+
+    -- open on first run
+    toggleUI()
+
+    -- ══════════════════════════════════════════
+    --  MONITOR MENU VISIBILITY
+    -- ══════════════════════════════════════════
+    -- workspace check
+    local playersFolder = workspace:FindFirstChild("Game") and workspace.Game:FindFirstChild("Players")
+
+    if playersFolder then
+        if playersFolder:FindFirstChild(LocalPlayer.Name) then
+            print("")
+        else
+            print("")
+        end
+
+        playersFolder.ChildAdded:Connect(function(child)
+            if child.Name == LocalPlayer.Name then
+                -- notifydmz("Player di dalam game emote swap berhasil", "success")
+                task.wait(1)
+                applyLastSwap()
+            end
+        end)
+
+        playersFolder.ChildRemoved:Connect(function(child)
+            if child.Name == LocalPlayer.Name then
+                -- notifydmz("Player kembali ke Menu, emotes dikembalikan ke default", "warn")
+                task.wait(0.1)
+                resetEmotes()
+            end
+        end)
+    else
+        warn("")
+    end
+end)
+
+mainTab:AddToggle("Collider Barriers & Walls", function(state)
+    local folder = workspace:WaitForChild("Game"):WaitForChild("Map"):WaitForChild("InvisParts")
+    for _, obj in ipairs(folder:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            obj.CanCollide = not state
+        end
+    end
+end)
+
+mainTab:AddToggle("Streak Protection (Auto Rejoin)", function(enabled) 
+    spawn(function()
+        while enabled do
+            wait(0.1)
+            
+            local stats = workspace:FindFirstChild("Game") and workspace.Game:FindFirstChild("Stats")
+            local timer = stats and stats:GetAttribute("Timer")
+
+            local myData = workspace:FindFirstChild("Game") 
+                           and workspace.Game:FindFirstChild("Players") 
+                           and workspace.Game.Players:FindFirstChild(LocalPlayer.Name)
+            local state = myData and myData:GetAttribute("State")
+
+            if timer and timer < 5 and state ~= nil and (state == "Downed" or state == "Default") then
+                local placeId = game.PlaceId
+                local jobId = game.JobId
+                TeleportService:TeleportToPlaceInstance(placeId, jobId, LocalPlayer)
+                break
+            end
+
+            -- print(timer)
+        end
+    end)
+end)
+
+
+mainTab:AddDropdown("Teleport Map [COMING SOON]", {"Option 1", "Option 2", "Option 3"})
+
+-- Jump Modifier
+local function getHumanoid()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    return char:WaitForChild("Humanoid")
+end
+
+-- Toggle UseJumpPower
+mainTab:AddToggle("Use JumpPower", function(state)
+    local humanoid = getHumanoid()
+    humanoid.UseJumpPower = state
+end)
+
+-- Slider JumpPower (25-100)
+mainTab:AddSlider("JumpPower", 25, 100, 50, function(value)
+    local humanoid = getHumanoid()
+    humanoid.JumpPower = value
+end)
+
+
+--======================================
+-- Movement TAB (Optimized + Autosave)
+--======================================
+local MovementTab = win:AddTab("MOVEMENT")
+local SettingsFile = "DRM_MovementSettings.json"
+
+--========================
+-- Core Config
+--========================
+local requiredFields = { 
+    Speed = true,
+    Friction = true,
+    AirStrafeAcceleration = true,
+    JumpHeight = true,
+    RunDeaccel = true,
+    JumpSpeedMultiplier = true,
+    JumpCap = true,
+    SprintCap = true,
+    WalkSpeedMultiplier = true,
+    BhopEnabled = true,
+    AirAcceleration = true,
+    RunAccel = true,
+    SprintAcceleration = true
+}
+
+local defaultValues = {
+    Speed = {1500, 1500, 5000},
+    Friction = {5, 5, 10},
+    AirStrafeAcceleration = {182, 182, 500},
+    JumpHeight = {3, 3, 50},
+    RunDeaccel = {1190, 1190, 1500},
+    JumpSpeedMultiplier = {1.45, 1.45, 10},
+    JumpCap = {1, 1, 10},
+    SprintCap = {2, 2, 10},
+    WalkSpeedMultiplier = {1, 1, 10},
+    BhopEnabled = {false},
+    AirAcceleration = {1, 1, 10},
+    RunAccel = {1.7, 1.7, 10},
+    SprintAcceleration = {1.7, 1.7, 10}
+}
+
+local currentSettings = {}
+local cachedTables = {}
+
+--========================
+-- Save / Load
+--========================
+local function roundNumber(num)
+    if typeof(num) ~= "number" then return num end
+    -- kalau angka lebih besar dari 100, pakai 2 digit; kalau kecil, pakai 4 digit
+    local digits = math.abs(num) >= 100 and 2 or 4
+    local mult = 10 ^ digits
+    return math.floor(num * mult + 0.5) / mult
+end
+
+local function prepareForSave(tbl)
+    local cleaned = {}
+    for k, v in pairs(tbl) do
+        if typeof(v) == "number" then
+            cleaned[k] = roundNumber(v)
+        else
+            cleaned[k] = v
+        end
+    end
+    return cleaned
+end
+
+local function saveSettings()
+    if writefile then
+        local cleaned = prepareForSave(currentSettings)
+        local json = HttpService:JSONEncode(cleaned)
+        writefile(SettingsFile, json)
+    else
+        warn("[DRM Debug] ⚠️ writefile tidak tersedia di executor ini.")
+    end
+end
+
+local function loadSettings()
+    if readfile and isfile and isfile(SettingsFile) then
+        local ok, data = pcall(function()
+            return HttpService:JSONDecode(readfile(SettingsFile))
+        end)
+        if ok and type(data) == "table" then
+            for k, v in pairs(data) do
+                currentSettings[k] = v
+            end
+        else
+            warn("[DRM Debug] ⚠️ Gagal decode settings.")
+        end
+    else
+        print("[DRM Debug] ℹ️ Tidak ada file settings, gunakan default.")
+    end
+end
+
+--========================
+-- Finder & Apply
+--========================
+local function refreshTableCache()
+    cachedTables = {}
+    if not getgc then
+        warn("[DRM Debug] getgc() is not available in this environment.")
+        return
+    end
+    for _, obj in pairs(getgc(true)) do
+        if typeof(obj) == "table" and rawget(obj, "Speed") and typeof(obj.Speed) == "number" then
+            table.insert(cachedTables, obj)
+        end
+    end
+end
+
+
+local function applyToCached(callback)
+    for _, tableObj in ipairs(cachedTables) do
+        if typeof(tableObj) == "table" then
+            local ok, err = pcall(callback, tableObj)
+            if not ok then
+                warn("[DRM Debug] Gagal apply:", err)
+            end
+        end
+    end
+end
+
+local function DRMSped(fieldName, value)
+    currentSettings[fieldName] = value
+    applyToCached(function(obj)
+        if obj and rawget(obj, fieldName) ~= nil then
+            local field = obj[fieldName]
+            if typeof(field) == "number" then
+                obj[fieldName] = value
+            elseif typeof(field) == "table" and field.Value then
+                field.Value = value
+            elseif typeof(field) == "boolean" then
+                obj[fieldName] = value
+            end
+        end
+    end)
+    saveSettings() -- 🔥 autosave setiap ubah setting
+end
+
+--========================
+-- UI Builder
+--========================
+loadSettings() -- 🔄 Load dulu sebelum UI dibangun
+
+for fieldName, _ in pairs(requiredFields) do
+    local def = defaultValues[fieldName]
+    local savedValue = currentSettings[fieldName]
+
+    if def and typeof(def[1]) == "boolean" then
+        local default = savedValue ~= nil and savedValue or def[1]
+        currentSettings[fieldName] = default
+        MovementTab:AddToggle(fieldName, default, function(value)
+            DRMSped(fieldName, value)
+        end)
+    else
+        local default, min, max
+        if def then default, min, max = def[1], def[2], def[3] else default, min, max = 1, 0, 100 end
+        local val = savedValue ~= nil and savedValue or default
+        currentSettings[fieldName] = val
+        MovementTab:AddSlider(fieldName, min, max, val, function(value)
+            DRMSped(fieldName, value)
+        end)
+    end
+end
+
+MovementTab:AddButton("🔄 Refresh Tables & Apply", function()
+    refreshTableCache()
+    for fieldName, value in pairs(currentSettings) do
+        DRMSped(fieldName, value)
+    end
+end)
+
+-- Jalankan cache & apply pertama kali
+refreshTableCache()
+for fieldName, value in pairs(currentSettings) do
+    DRMSped(fieldName, value)
+end
+
+
+--======================================
+-- UTIL TAB
+--======================================
+local utilTab = win:AddTab("UTIL")
+
+-- Fly variables
+local FLYING = false
+local QEfly = true
+local flySpeed = 50
+local flyKeyDown, flyKeyUp
+
+-- Ambil HRP
+local function getRoot(char)
+	return char:FindFirstChild("HumanoidRootPart")
+end
+
+-- ✈️ Start Fly
+local function startFly()
+	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+	local humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid")
+	local root = getRoot(char)
+	if not root then
+		return
+	end
+
+	if flyKeyDown then flyKeyDown:Disconnect() end
+	if flyKeyUp then flyKeyUp:Disconnect() end
+
+	local CONTROL = { F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0 }
+	local speed = 0
+
+	local BG = Instance.new("BodyGyro")
+	local BV = Instance.new("BodyVelocity")
+	BG.P = 9e4
+	BG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+	BG.CFrame = root.CFrame
+	BG.Parent = root
+
+	BV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+	BV.Velocity = Vector3.new(0, 0, 0)
+	BV.Parent = root
+
+	humanoid.PlatformStand = true
+	FLYING = true
+
+	-- Loop
+	task.spawn(function()
+		while FLYING do
+			task.wait()
+			local cam = Camera
+			if CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0 then
+				speed = flySpeed
+			else
+				speed = 0
+			end
+
+			local moveVec = (cam.CFrame.LookVector * (CONTROL.F + CONTROL.B))
+				+ ((cam.CFrame * CFrame.new(CONTROL.L + CONTROL.R, (CONTROL.F + CONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0)).p - cam.CFrame.p)
+			BV.Velocity = moveVec * speed
+			BG.CFrame = cam.CFrame
+		end
+
+		BV:Destroy()
+		BG:Destroy()
+		humanoid.PlatformStand = false
+	end)
+
+	-- Input
+	flyKeyDown = UIS.InputBegan:Connect(function(input, processed)
+		if processed then return end
+		local val = 1
+		if input.KeyCode == Enum.KeyCode.W then
+			CONTROL.F = val
+		elseif input.KeyCode == Enum.KeyCode.S then
+			CONTROL.B = -val
+		elseif input.KeyCode == Enum.KeyCode.A then
+			CONTROL.L = -val
+		elseif input.KeyCode == Enum.KeyCode.D then
+			CONTROL.R = val
+		elseif input.KeyCode == Enum.KeyCode.E and QEfly then
+			CONTROL.Q = val * 2
+		elseif input.KeyCode == Enum.KeyCode.Q and QEfly then
+			CONTROL.E = -val * 2
+		end
+	end)
+
+	flyKeyUp = UIS.InputEnded:Connect(function(input)
+		if input.KeyCode == Enum.KeyCode.W then
+			CONTROL.F = 0
+		elseif input.KeyCode == Enum.KeyCode.S then
+			CONTROL.B = 0
+		elseif input.KeyCode == Enum.KeyCode.A then
+			CONTROL.L = 0
+		elseif input.KeyCode == Enum.KeyCode.D then
+			CONTROL.R = 0
+		elseif input.KeyCode == Enum.KeyCode.E then
+			CONTROL.Q = 0
+		elseif input.KeyCode == Enum.KeyCode.Q then
+			CONTROL.E = 0
+		end
+	end)
+end
+
+-- 🧩 Stop Fly
+local function stopFly()
+	FLYING = false
+	if flyKeyDown then flyKeyDown:Disconnect() end
+	if flyKeyUp then flyKeyUp:Disconnect() end
+	local char = LocalPlayer.Character
+	if char then
+		local humanoid = char:FindFirstChildOfClass("Humanoid")
+		if humanoid then humanoid.PlatformStand = false end
+	end
+end
+
+-- Fly Toggle
+utilTab:AddToggle("Fly", function(state)
+	if state then
+		startFly()
+	else
+		stopFly()
+	end
+end)
+
+-- Fly Toggle
+local connectionSIT
+utilTab:AddToggle("Sit Emote Jatoh [LEFT SHIFT]", function(state)
+    local P = game:GetService("Players")
+    local U = game:GetService("UserInputService")
+    local p = P.LocalPlayer
+
+    local function toggleSit()
+        local h = workspace.Game.Players:FindFirstChild(p.Name) and workspace.Game.Players[p.Name]:FindFirstChild("Humanoid")
+        if h then
+            h.Sit = not h.Sit
+            print("Sit:", h.Sit)
+        end
+    end
+
+    if state then
+        connectionSIT = U.InputBegan:Connect(function(input, gpe)
+            if not gpe and (input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift) then
+                toggleSit()
+            end
+        end)
+    else
+        if connectionSIT then
+            connectionSIT:Disconnect()
+            connectionSIT = nil
+        end
+    end
+end)
+
+-- Noclip Toggle
+utilTab:AddToggle("Noclip", function(state)
+	local char = LocalPlayer.Character
+	if char then
+		for _, part in pairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = not state
+			end
+		end
+	end
+end)
+
+local debugPrint = false
+
+local ItemIds = {
+    Cola = 141,
+    SmokeGrenade = 1132,
+    ReviveGrenade = 1150,
+    Beacon = 142,
+    Floodlight = 143,
+    Landmine = 144,
+    Sensor = 146,
+    SpeedPad = 147,
+    Teleporter = 148,
+    JumpPad = 149,
+    Barrier = 150,
+    Radar = 151,
+    Timer = 152,
+    Radio = 153,
+    Compass = 154,
+    Decoy = 155,
+    GrappleHook = 162,
+    GrappleShot = 627,
+    Breacher = 1130
+}
+
+local Items = {}
+for k, _ in pairs(ItemIds) do
+    table.insert(Items, k)
+end
+
+local AutoBuyUsableItems = {}
+local AutoBuy = false
+local conn = {}
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+utilTab:AddDropdown("Select Auto Buy Usable Items", Items, function(selectedItems, toggleState)
+    if toggleState then
+        -- toggle ON
+        if typeof(selectedItems) == "table" then
+            AutoBuyUsableItems = selectedItems
+        elseif typeof(selectedItems) == "string" then
+            AutoBuyUsableItems = { selectedItems }
+        else
+            AutoBuyUsableItems = {}
+        end
+        AutoBuy = true
+
+        if debugPrint then
+            print("[DEBUG] AutoBuy ON")
+            for i, itemName in ipairs(AutoBuyUsableItems) do
+                print("   Item", i, itemName, ItemIds[itemName])
+            end
+        end
+
+        if conn.AutoBuy then conn.AutoBuy:Disconnect() conn.AutoBuy = nil end
+
+        -- mulai Heartbeat
+        if #AutoBuyUsableItems > 0 then
+            conn.AutoBuy = RunService.Heartbeat:Connect(function()
+                for _, itemName in ipairs(AutoBuyUsableItems) do
+                    local itemId = ItemIds[itemName]
+                    if itemId then
+                        local success, err = pcall(function()
+                            ReplicatedStorage.Events.Data.Purchase:InvokeServer(itemId)
+                        end)
+                        if debugPrint then
+                            print("[DEBUG] Buying Item:", itemName, "ID:", itemId, "Success:", success, "Error:", err)
+                        end
+                    end
+                end
+            end)
+        end
+    else
+        -- toggle OFF
+        AutoBuy = false
+        if debugPrint then print("[DEBUG] AutoBuy OFF") end
+        if conn.AutoBuy then
+            conn.AutoBuy:Disconnect()
+            conn.AutoBuy = nil
+        end
+    end
+end, true) -- 
+
+------------
+
+utilTab:AddButton("Lightning Inflatable", function(state)
+	local json = [[
+	[{"ClockTime":6.900000095367432,"FogEnd":1000000,"GlobalShadows":false,"ClassName":"Lighting","GeographicLatitude":29,"Ambient":{"b":0.24705882370471955,"g":0.2549019753932953,"r":0.26274511218070986},"OutdoorAmbient":{"b":0.2980392277240753,"g":0.2666666805744171,"r":0.24705882370471955},"Name":"Lighting","Brightness":1.5,"ExposureCompensation":0.10000000149011612,"FogStart":100000},{"Enabled":false,"ClassName":"BlurEffect","Name":"MenuBlur","Size":12},{"Density":0.27000001072883608,"Haze":2.4000000953674318,"Name":"Atmosphere","ClassName":"Atmosphere","Color":{"b":0.30980393290519717,"g":0.5843137502670288,"r":1},"Decay":{"b":0.8549019694328308,"g":0.4117647111415863,"r":0.5607843399047852},"Glare":0.30000001192092898,"Offset":0.5},{"StarCount":3000,"SkyboxUp":"http://www.roblox.com/asset/?id=255030842","MoonTextureId":"","SkyboxBk":"http://www.roblox.com/asset/?id=255030787","CelestialBodiesShown":true,"ClassName":"Sky","Name":"Clear Blue","SunTextureId":"http://www.roblox.com/asset/?id=13716317418","SkyboxFt":"http://www.roblox.com/asset/?id=255030774","SkyboxLf":"http://www.roblox.com/asset/?id=255030796","SkyboxRt":"http://www.roblox.com/asset/?id=255030819","SkyboxDn":"http://www.roblox.com/asset/?id=255030847"},{"Enabled":true,"Intensity":1,"ClassName":"BloomEffect","Name":"Bloom","Threshold":2,"Size":24},{"Enabled":true,"Saturation":0.10000000149011612,"Contrast":0.05999999865889549,"TintColor":{"b":1,"g":1,"r":1},"Brightness":0,"ClassName":"ColorCorrectionEffect","Name":"ColorCorrection"},{"Enabled":false,"FarIntensity":0.10000000149011612,"FocusDistance":0.05000000074505806,"ClassName":"DepthOfFieldEffect","InFocusRadius":30,"Name":"DepthOfField","NearIntensity":0.75},{"Enabled":true,"Intensity":0.03999999910593033,"ClassName":"SunRaysEffect","Spread":0.4000000059604645,"Name":"SunRays"}]
+	]]
+
+    local data = HttpService:JSONDecode(json)
+
+    -- 🧹 Hapus semua child lama
+    for _, obj in ipairs(Lighting:GetChildren()) do
+        pcall(function() obj:Destroy() end)
+    end
+    print("🧹 Old lighting cleared!")
+
+    -- 🎨 Helper buat Color3
+    local function toColor3(tbl)
+        return Color3.new(tbl.r, tbl.g, tbl.b)
+    end
+
+    -- 🌈 Pasang Lighting baru dari JSON
+    for _, info in ipairs(data) do
+        local inst = Instance.new(info.ClassName)
+        inst.Name = info.Name
+        inst.Parent = Lighting
+        for prop, val in pairs(info.Properties) do
+            if prop ~= "Name" and prop ~= "ClassName" then
+                pcall(function()
+                    if typeof(val) == "table" and val.r then
+                        val = toColor3(val)
+                    end
+                    inst[prop] = val
+                end)
+            end
+        end
+    end
+
+    print("✅ Lighting Inflatable applied successfully!")
+end)
+
+utilTab:AddButton("LagSwitch Auto Garden", function(state)
+    local url = "https://raw.githubusercontent.com/DRE4MZX/RBLX_GUI/main/lagswitchgarden"
+    local success, scriptData = pcall(function()
+        return game:HttpGet(url)
+    end)
+
+    if success and scriptData then
+        loadstring(scriptData)()
+    else
+        warn("❌ Gagal load FPS BOOST script")
+    end
+end)
+
+-- Esp Player + Name
+local Players = game:GetService("Players")
+local Camera = workspace.CurrentCamera
+local gamePlayersFolder = workspace:WaitForChild("Game"):WaitForChild("Players")
+
+local ESPEnabled = false
+local updateConnection
+
+-- Fungsi bikin Billboard nama
+local function createNameTag(char, isPlayer)
+    if not char:FindFirstChild("HumanoidRootPart") then return end
+    if char:FindFirstChild("NameTag") then return end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "NameTag"
+    billboard.Adornee = char.HumanoidRootPart
+    billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = char
+
+    local text = Instance.new("TextLabel")
+    text.Name = "NameLabel"
+    text.Size = UDim2.new(1, 0, 1, 0)
+    text.BackgroundTransparency = 1
+    text.Text = char.Name .. (isPlayer and " [Player]" or " [BOT]")
+    text.TextColor3 = isPlayer and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    text.TextStrokeTransparency = 0
+    text.TextScaled = false
+    text.Font = Enum.Font.SourceSansBold
+    text.TextSize = 24 -- default
+    text.Parent = billboard
+end
+
+-- Fungsi bikin Highlight
+local function createHighlight(char, isPlayer)
+    if char:FindFirstChild("ESP_Highlight") then return end
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Highlight"
+    highlight.Parent = char
+    highlight.Adornee = char
+    highlight.FillColor = isPlayer and Color3.fromRGB(0, 255, 255) or Color3.fromRGB(255, 0, 255)
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+end
+
+-- Fungsi hapus ESP & nama
+local function removeESP(char)
+    local highlight = char:FindFirstChild("ESP_Highlight")
+    if highlight then highlight:Destroy() end
+    local nameTag = char:FindFirstChild("NameTag")
+    if nameTag then nameTag:Destroy() end
+end
+
+-- Fungsi proses karakter
+local function processCharacter(char)
+    local isPlayer = Players:FindFirstChild(char.Name) ~= nil
+    createHighlight(char, isPlayer)
+    createNameTag(char, isPlayer)
+end
+
+-- Toggle ESP
+local function toggleESP(state)
+    ESPEnabled = state
+
+    if ESPEnabled then
+        -- Pasang ESP ke semua karakter saat ini
+        for _, char in ipairs(gamePlayersFolder:GetChildren()) do
+            if char:IsA("Model") then
+                processCharacter(char)
+            end
+        end
+
+        -- Pasang ESP saat ada karakter baru
+        gamePlayersFolder.ChildAdded:Connect(function(char)
+            if ESPEnabled and char:IsA("Model") then
+                char:WaitForChild("HumanoidRootPart", 5)
+                processCharacter(char)
+            end
+        end)
+
+        -- Update ukuran teks tiap frame sesuai jarak
+        updateConnection = RunService.RenderStepped:Connect(function()
+            for _, char in ipairs(gamePlayersFolder:GetChildren()) do
+                local nameTag = char:FindFirstChild("NameTag")
+                if nameTag and char:FindFirstChild("HumanoidRootPart") then
+                    local label = nameTag:FindFirstChild("NameLabel")
+                    if label then
+                        local dist = (Camera.CFrame.Position - char.HumanoidRootPart.Position).Magnitude
+                        local size = math.clamp(50 / dist * 10, 12, 30)
+                        label.TextSize = size
+                    end
+                end
+            end
+        end)
+    else
+        -- Matikan ESP: hapus semua highlight dan nama
+        for _, char in ipairs(gamePlayersFolder:GetChildren()) do
+            removeESP(char)
+        end
+        if updateConnection then
+            updateConnection:Disconnect()
+            updateConnection = nil
+        end
+    end
+end
+
+-- Contoh pakai toggle (mirip utilTab)
+utilTab:AddToggle("ESP Players", function(state)
+    toggleESP(state)
+end)
+
+-- Moon Jump Toggle
+utilTab:AddToggle("Moon Jump", function(state)
+	workspace.Gravity = state and 35 or 50
+	local char = LocalPlayer.Character
+	if char then
+		local humanoid = char:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid.JumpPower = state and 100 or 50
+		end
+	end
+end)
+
+local autoTicket = false
+local processed = {} -- simpan Visual yang sudah di-TP
+
+utilTab:AddToggle("Auto Farm Ticket", function(state)
+	autoTicket = state
+
+	if state then
+		task.spawn(function()
+			local ticketsFolder = workspace.Game.Effects.Tickets
+
+			while autoTicket do
+				for _, visual in ipairs(ticketsFolder:GetChildren()) do
+					if visual:IsA("Model") and visual.Name == "Visual" then
+						-- kalau belum pernah diproses
+						if not processed[visual] then
+							local char = LocalPlayer.Character
+							local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+							if hrp then
+								-- teleport ke pivot visual
+								hrp.CFrame = visual:GetPivot() + Vector3.new(0, 5, 0)
+							end
+
+							processed[visual] = true
+
+							-- tunggu 1 detik sesuai behavior game
+							task.wait(1)
+						end
+					end
+				end
+
+				-- bersihin visual yang sudah despawn
+				for visual, _ in pairs(processed) do
+					if not visual.Parent then
+						processed[visual] = nil
+					end
+				end
+
+				task.wait(0.1)
+			end
+
+			-- reset kalau toggle OFF
+			table.clear(processed)
+		end)
+	end
+end)
+
+-- Copy Coordinates Button
+utilTab:AddButton("Copy Coordinates", function()
+	local char = LocalPlayer.Character
+	if char then
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			setclipboard(string.format("%.2f, %.2f, %.2f", hrp.Position.X, hrp.Position.Y, hrp.Position.Z))
+			print("Coordinates copied:", hrp.Position)
+		end
+	end
+end)
+
+-- FOV Slider
+local CameraScripts = LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("Camera"):WaitForChild("FOVAdjusters")
+local Zoom = CameraScripts:WaitForChild("Zoom")
+utilTab:AddToggle("FOV Adjust", function(state)
+	Zoom.Value = state and 2 or 1
+end)
+--======================================
+-- SETTINGS TAB
+--======================================
+local settingsTab = win:AddTab("SETTINGS")
+settingsTab:AddToggle("Dark Mode", function(state)
+	if win.SetTheme then
+		win:SetTheme(state and "Dark" or "Light")
+	end
+end)
+
+--======================================
+-- CREDIT TAB
+--======================================
+local creditTab = win:AddTab("CREDIT")
+creditTab:AddLabel("Created by Dreamz")
