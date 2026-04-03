@@ -1,4 +1,5 @@
-print("access dmzhub run)
+print("access dmzhub run")
+
 _G.whitelisted = {
     "dodifun",
     "espalaseju"
