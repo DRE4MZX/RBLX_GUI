@@ -2,5 +2,6 @@ print("access dmzhub run")
 
 _G.whitelisted = {
     "dodifun",
-    "espalaseju"
+    "espalaseju",
+    "alw1thlovee"
 }
