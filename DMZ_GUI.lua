@@ -23,19 +23,19 @@ end
 -- ║       PALETTE & STYLE        ║
 -- ╚══════════════════════════════╝
 local C = {
-	BG        = Color3.fromRGB(13, 13, 18),      -- main window bg
-	SURFACE   = Color3.fromRGB(20, 20, 28),      -- panels, items
-	ELEVATED  = Color3.fromRGB(26, 26, 38),      -- title bar, tab area
-	BORDER    = Color3.fromRGB(45, 45, 65),      -- subtle borders
-	ACCENT    = Color3.fromRGB(108, 92, 231),    -- purple accent
-	ACCENT2   = Color3.fromRGB(0, 210, 150),     -- green accent (toggles/sliders)
-	TEXT      = Color3.fromRGB(230, 228, 245),   -- primary text
-	MUTED     = Color3.fromRGB(120, 118, 148),   -- secondary text
-	DANGER    = Color3.fromRGB(235, 75, 75),     -- close btn
-	TAB_ACT   = Color3.fromRGB(108, 92, 231),    -- active tab bg
-	TAB_INACT = Color3.fromRGB(22, 22, 32),      -- inactive tab bg
-	BTN       = Color3.fromRGB(22, 22, 36),      -- button bg
-	BTN_TRACK = Color3.fromRGB(30, 30, 45),      -- slider track
+	BG        = Color3.fromRGB(13, 13, 18),
+	SURFACE   = Color3.fromRGB(20, 20, 28),
+	ELEVATED  = Color3.fromRGB(26, 26, 38),
+	BORDER    = Color3.fromRGB(45, 45, 65),
+	ACCENT    = Color3.fromRGB(108, 92, 231),
+	ACCENT2   = Color3.fromRGB(0, 210, 150),
+	TEXT      = Color3.fromRGB(230, 228, 245),
+	MUTED     = Color3.fromRGB(120, 118, 148),
+	DANGER    = Color3.fromRGB(235, 75, 75),
+	TAB_ACT   = Color3.fromRGB(108, 92, 231),
+	TAB_INACT = Color3.fromRGB(22, 22, 32),
+	BTN       = Color3.fromRGB(22, 22, 36),
+	BTN_TRACK = Color3.fromRGB(30, 30, 45),
 }
 
 local function applyStroke(parent, color, thickness, transparency)
@@ -96,7 +96,6 @@ function DMZ:CreateWindow(title)
 		BorderSizePixel = 0,
 	})
 	corner(TitleBar, 12)
-	-- patch rounded bottom corners of title bar
 	create("Frame", {
 		Parent = TitleBar,
 		Size = UDim2.new(1, 0, 0, 12),
@@ -105,7 +104,6 @@ function DMZ:CreateWindow(title)
 		BorderSizePixel = 0,
 	})
 
-	-- Thin accent rule below title bar
 	create("Frame", {
 		Parent = Frame,
 		Size = UDim2.new(1, 0, 0, 1),
@@ -115,7 +113,6 @@ function DMZ:CreateWindow(title)
 		BorderSizePixel = 0,
 	})
 
-	-- Accent pill left of title
 	create("Frame", {
 		Parent = TitleBar,
 		Size = UDim2.new(0, 3, 0, 16),
@@ -166,28 +163,79 @@ function DMZ:CreateWindow(title)
 		return btn
 	end
 
-	local CloseButton = makeCtrlBtn(-28, "×", Color3.fromRGB(45, 22, 28), C.DANGER, C.DANGER)
+	local CloseButton    = makeCtrlBtn(-28, "×", Color3.fromRGB(45, 22, 28), C.DANGER, C.DANGER)
 	local MinimizeButton = makeCtrlBtn(-54, "−", C.ELEVATED, C.BORDER, C.MUTED)
 
-	-- ── Close / Minimize Logic (unchanged) ──────────────────────────────────
+	-- ── Hide / Show / Destroy Logic ──────────────────────────────────────────
+	-- × → hide saja (frame invisible)
+	-- Right Ctrl → unhide / show kembali
+	-- Right Ctrl + X → destroy permanent
+
+	local hidden = false
+	local savedSize = Frame.Size
+	local savedPos  = Frame.Position
+
+	local function hideGUI()
+		savedSize = Frame.Size
+		savedPos  = Frame.Position
+		tween(Frame, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.25)
+		task.wait(0.25)
+		Frame.Visible = false
+		hidden = true
+	end
+
+	local function showGUI()
+		Frame.Size     = UDim2.new(0, 0, 0, 0)
+		Frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+		Frame.Visible  = true
+		tween(Frame, { Size = savedSize, Position = savedPos }, 0.25)
+		hidden = false
+	end
+
+	-- Close button → hide saja
 	CloseButton.MouseButton1Click:Connect(function()
-		tween(Frame, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.3)
-		wait(0.3)
-		ScreenGui:Destroy()
+		hideGUI()
 	end)
 
+	-- Keybind listener
+	local rctrlHeld = false
+
+	UserInputService.InputBegan:Connect(function(input, _gpe)
+		if input.KeyCode == Enum.KeyCode.RightControl then
+			rctrlHeld = true
+			-- Right Ctrl → tampilkan kembali kalau sedang hidden
+			if hidden then
+				showGUI()
+			end
+		end
+
+		-- Right Ctrl + X → destroy permanent
+		if rctrlHeld and input.KeyCode == Enum.KeyCode.X then
+			tween(Frame, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.25)
+			task.wait(0.25)
+			ScreenGui:Destroy()
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if input.KeyCode == Enum.KeyCode.RightControl then
+			rctrlHeld = false
+		end
+	end)
+
+	-- ── Minimize ─────────────────────────────────────────────────────────────
 	local minimized = false
-	local lastSize = Frame.Size
-	local lastPos = Frame.Position
+	local lastSize  = Frame.Size
+	local lastPos   = Frame.Position
 
 	MinimizeButton.MouseButton1Click:Connect(function()
 		if not minimized then
 			lastSize = Frame.Size
-			lastPos = Frame.Position
+			lastPos  = Frame.Position
 			Frame.Size = UDim2.new(Frame.Size.X.Scale, Frame.Size.X.Offset, 0, 36)
 			minimized = true
 		else
-			Frame.Size = lastSize
+			Frame.Size     = lastSize
 			Frame.Position = lastPos
 			minimized = false
 		end
@@ -203,7 +251,6 @@ function DMZ:CreateWindow(title)
 	})
 	corner(TabsFrame, 0)
 
-	-- right border line on sidebar
 	create("Frame", {
 		Parent = TabsFrame,
 		Size = UDim2.new(0, 1, 1, 0),
@@ -295,7 +342,6 @@ function DMZ:CreateWindow(title)
 		BackgroundTransparency = 1,
 		ZIndex = 2,
 	})
-	-- small visual grip indicator
 	local grip = create("TextLabel", {
 		Parent = ResizeHandle,
 		Size = UDim2.new(1, 0, 1, 0),
@@ -373,7 +419,6 @@ function DMZ:CreateWindow(title)
 	-- ═══════════════════════════════════════════════════════════════════════
 	function selfObj:AddTab(name)
 
-		-- Sidebar tab button
 		local tabBtn = create("TextButton", {
 			Parent = ScrollTabs,
 			Text = "",
@@ -384,7 +429,6 @@ function DMZ:CreateWindow(title)
 		})
 		corner(tabBtn, 7)
 
-		-- Accent indicator bar (left edge, shown when active)
 		local tabIndicator = create("Frame", {
 			Parent = tabBtn,
 			Size = UDim2.new(0, 3, 0, 16),
@@ -408,7 +452,6 @@ function DMZ:CreateWindow(title)
 			TextTruncate = Enum.TextTruncate.AtEnd,
 		})
 
-		-- Content frame for this tab
 		local tabFrame = create("Frame", {
 			Parent = ScrollContent,
 			Size = UDim2.new(1, 0, 1, 0),
@@ -431,7 +474,6 @@ function DMZ:CreateWindow(title)
 		})
 		pad(tabScroll, 8, 8, 8, 8)
 
-		-- Tab click: switch active tab
 		tabBtn.MouseButton1Click:Connect(function()
 			for _, c in pairs(ScrollContent:GetChildren()) do
 				if c:IsA("Frame") then c.Visible = false end
@@ -451,7 +493,6 @@ function DMZ:CreateWindow(title)
 			tabIndicator.BackgroundTransparency = 0
 		end)
 
-		-- ── Shared item builder ────────────────────────────────────────────
 		local function baseItem(height)
 			local row = create("Frame", {
 				Parent = tabScroll,
@@ -493,7 +534,6 @@ function DMZ:CreateWindow(title)
 			corner(btn, 7)
 			applyStroke(btn, C.BORDER, 1, 0.5)
 
-			-- left accent stripe
 			local stripe = create("Frame", {
 				Parent = btn,
 				Size = UDim2.new(0, 3, 0, 18),
@@ -526,7 +566,6 @@ function DMZ:CreateWindow(title)
 
 			local state = false
 
-			-- Track
 			local track = create("Frame", {
 				Parent = row,
 				Size = UDim2.new(0, 36, 0, 18),
@@ -537,7 +576,6 @@ function DMZ:CreateWindow(title)
 			corner(track, 9)
 			applyStroke(track, C.BORDER, 1, 0.3)
 
-			-- Thumb
 			local thumb = create("Frame", {
 				Parent = track,
 				Size = UDim2.new(0, 12, 0, 12),
@@ -547,7 +585,6 @@ function DMZ:CreateWindow(title)
 			})
 			corner(thumb, 6)
 
-			-- Clickable overlay
 			local clickArea = create("TextButton", {
 				Parent = row,
 				Size = UDim2.new(1, 0, 1, 0),
@@ -693,7 +730,6 @@ function DMZ:CreateWindow(title)
 				TextXAlignment = Enum.TextXAlignment.Left,
 			})
 
-			-- Dropdown header button
 			local dropdown = create("TextButton", {
 				Parent = container,
 				Size = UDim2.new(1, -16, 0, 26),
@@ -710,7 +746,6 @@ function DMZ:CreateWindow(title)
 			applyStroke(dropdown, C.BORDER, 1, 0.3)
 			pad(dropdown, 10, 28, 0, 0)
 
-			-- chevron
 			local chevron = create("TextLabel", {
 				Parent = dropdown,
 				Text = "▾",
@@ -723,7 +758,6 @@ function DMZ:CreateWindow(title)
 				TextXAlignment = Enum.TextXAlignment.Center,
 			})
 
-			-- Submit toggle button
 			local submitBtn = create("TextButton", {
 				Parent = container,
 				Size = UDim2.new(1, -16, 0, 26),
@@ -742,7 +776,6 @@ function DMZ:CreateWindow(title)
 			local selections = choosemultiple and {} or nil
 			local isActive = false
 
-			-- Options scroll frame
 			local optionsFrame = create("ScrollingFrame", {
 				Parent = container,
 				Size = UDim2.new(1, -16, 0, 100),
